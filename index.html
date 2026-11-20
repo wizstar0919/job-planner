@@ -588,6 +588,9 @@ mark[data-cs]{cursor:pointer}
 @container app (max-width:760px){.cbar{bottom:calc(70px + env(safe-area-inset-bottom,0px))}.app.has-cbar .fab{bottom:calc(150px + env(safe-area-inset-bottom,0px))}}
 @media (prefers-reduced-motion:reduce){.cbar.enter{animation:none}}
 @container app (max-width:760px){.app.has-cbar .fab,.app.side-off.has-cbar .fab{display:none}}
+
+/* 자소서: 줄바꿈마다 문단 간격 */
+.ans .pg{display:block;height:.55em}
 </style>
 </head>
 <body>
@@ -1100,6 +1103,7 @@ function hl(text,cs){
     byQ[q]=[c.id];placed.push(c.id);keys.push(q);
     h=h.slice(0,i)+`<mark data-act="pin-c" data-cs="§${keys.length-1}§">${q}</mark>`+h.slice(i+q.length)});
   h=h.replace(/§(\d+)§/g,(m,n)=>byQ[keys[+n]].join(' '));
+  h=h.replace(/\n/g,'\n<i class="pg"></i>');/* 문단 사이 간격 */
   return {h,lost,placed};
 }
 function cmtH(p,c,lostIds){
@@ -1549,7 +1553,8 @@ document.addEventListener('selectionchange',()=>{
   const bar=$('#selbar');if(!bar)return;
   const sel=window.getSelection&&window.getSelection();const txt=sel?String(sel).trim():'';
   const node=sel&&sel.anchorNode;const el=node&&(node.nodeType===1?node:node.parentElement);const box=el&&el.closest&&el.closest('.ans');
-  if(txt&&box&&!box.classList.contains('empty-a')&&txt.length<=300){S.sel={qi:+box.dataset.qi,quote:txt};$('#selTxt').textContent=`“${txt}”`;bar.hidden=false}
+  let qt=txt;if(qt&&box){const pp=find(box.dataset.pid),qq=pp&&pp.qs[+box.dataset.qi];if(qq&&!qq.a.includes(qt)){const t2=qt.replace(/\n\s*\n/g,'\n');if(qq.a.includes(t2))qt=t2}}
+  if(txt&&box&&!box.classList.contains('empty-a')&&txt.length<=300){S.sel={qi:+box.dataset.qi,quote:qt};$('#selTxt').textContent=`“${txt}”`;bar.hidden=false}
   else if(!(document.activeElement&&document.activeElement.closest&&document.activeElement.closest('.selbar')))bar.hidden=true;
 });
 document.addEventListener('paste',e=>{if(!S.add||S.add.phase!=='input'||S.add.tab!=='cap')return;const fs=[...((e.clipboardData||{}).items||[])].filter(i=>i.type.startsWith('image/')).map(i=>i.getAsFile());if(fs.length)addFiles(fs)});

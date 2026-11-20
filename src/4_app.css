@@ -229,3 +229,6 @@ mark[data-cs]{cursor:pointer}
 @container app (max-width:760px){.cbar{bottom:calc(70px + env(safe-area-inset-bottom,0px))}.app.has-cbar .fab{bottom:calc(150px + env(safe-area-inset-bottom,0px))}}
 @media (prefers-reduced-motion:reduce){.cbar.enter{animation:none}}
 @container app (max-width:760px){.app.has-cbar .fab,.app.side-off.has-cbar .fab{display:none}}
+
+/* 자소서: 줄바꿈마다 문단 간격 */
+.ans .pg{display:block;height:.55em}
