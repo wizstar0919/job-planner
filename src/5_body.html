@@ -362,11 +362,15 @@ function stepsH(p){const fi=p.stage==='종료'&&p.failAt?p.steps.indexOf(p.failA
   return p.steps.map((s,i)=>{let c='';if(p.stage==='종료'){if(p.result==='최종합격'||i<fi)c='done';else if(i===fi)c='fail'}else{if(i<p.cur)c='done';else if(i===p.cur)c='now'}
     return (i?'<span class="arrow">→</span>':'')+`<span class="step ${c}">${c==='done'?'✔ ':c==='fail'?'✕ ':''}${esc(s)}</span>`}).join('')}
 function hl(text,cs){
-  let h=esc(text);const lost=[];
-  cs.filter(c=>c.quote&&!c.resolved).forEach(c=>{const q=esc(c.quote);const i=h.indexOf(q);
-    if(i<0){lost.push(c.id);return}if(h.lastIndexOf('<mark',i)>h.lastIndexOf('</mark>',i))return;
-    h=h.slice(0,i)+`<mark data-act="goto-c" data-c="${c.id}" class="${S.flash===c.id?'on':''}">${q}</mark>`+h.slice(i+q.length)});
-  return {h,lost};
+  let h=esc(text);const lost=[],placed=[],keys=[],byQ={};
+  cs.filter(c=>c.quote&&!c.resolved).forEach(c=>{const q=esc(c.quote);
+    if(byQ[q]){byQ[q].push(c.id);placed.push(c.id);return}
+    const i=h.indexOf(q);if(i<0){lost.push(c.id);return}
+    const seg=h.slice(i,i+q.length);if(h.lastIndexOf('<mark',i)>h.lastIndexOf('</mark>',i)||seg.includes('<mark')||seg.includes('</mark>'))return;
+    byQ[q]=[c.id];placed.push(c.id);keys.push(q);
+    h=h.slice(0,i)+`<mark data-act="pin-c" data-cs="§${keys.length-1}§">${q}</mark>`+h.slice(i+q.length)});
+  h=h.replace(/§(\d+)§/g,(m,n)=>byQ[keys[+n]].join(' '));
+  return {h,lost,placed};
 }
 function cmtH(p,c,lostIds){
   return `<div class="cmt ${c.resolved?'res':''} ${S.flash===c.id?'flash':''}" id="c-${c.id}">
@@ -381,17 +385,22 @@ function cmtList(p,cs,lostIds,key){
   const open=cs.filter(c=>!c.resolved),done=cs.filter(c=>c.resolved);
   return `<div class="cmts">${open.map(c=>cmtH(p,c,lostIds)).join('')}${done.length?`<button class="link-btn small" style="align-self:flex-start" data-act="show-res" data-v="${key}">${S.showRes[key]?'▾':'▸'} 해결된 댓글 ${done.length}개</button>${S.showRes[key]?done.map(c=>cmtH(p,c,lostIds)).join(''):''}`:''}</div>`;
 }
+function qCmts(p,cs,lost,placed,key){
+  const open=cs.filter(c=>!c.resolved),rest=open.filter(c=>!placed.includes(c.id)),done=cs.filter(c=>c.resolved);
+  return `<div class="cbar">${placed.length?`💬 ${placed.length} · 형광펜에 ${narrow()?'눌러서':'마우스를 올려서'} 보기`:''}</div>`+
+    (rest.length||done.length?`<div class="cmts">${rest.map(c=>cmtH(p,c,lost)).join('')}${done.length?`<button class="link-btn small" style="align-self:flex-start" data-act="show-res" data-v="${key}">${S.showRes[key]?'▾':'▸'} 해결된 댓글 ${done.length}개</button>${S.showRes[key]?done.map(c=>cmtH(p,c,lost)).join(''):''}`:''}</div>`:'');
+}
 function qBlock(p,q,i,r){
   const cs=p.comments.filter(c=>c.qi===i);const len=q.a.replace(/\n/g,'').length;
   const editing=S.editQ&&S.editQ.pid===p.id&&S.editQ.qi===i;
-  const {h,lost}=hl(q.a,cs);
+  const {h,lost,placed}=hl(q.a,cs);
   const statusH=r?`<span class="pill ${q.st==='제출본'?'ok':'mute'}">${q.st}${q.lock?' 🔒':''}</span>`:`<select class="mini-sel" data-ch="qst" data-i="${i}" aria-label="답변 상태">${QST.map(s=>`<option ${q.st===s?'selected':''}>${s}</option>`).join('')}</select>${q.lock?' 🔒':''}`;
   const btn=r||editing?'':q.lock?`<button class="btn sm" data-act="unlock" data-i="${i}">잠금 풀기</button>`:`<button class="btn sm" data-act="edit-a" data-i="${i}">${q.a?'수정':'답변 쓰기'}</button>`;
   return `<div class="q" data-qi="${i}"><p><b>${i+1}.</b> ${esc(q.t)} <span class="muted small">${q.n?'· '+q.n.toLocaleString()+'자':''}</span></p>
    ${editing?`<textarea class="ans-ta" id="ansTa" aria-label="${i+1}번 답변">${esc(q.a)}</textarea><div class="qbar"><span class="cnt" id="ansCnt">${len.toLocaleString()} / ${q.n?q.n.toLocaleString():'-'}자</span><span class="sp"><button class="btn sm" data-act="cancel-a">취소</button><button class="btn sm primary" data-act="save-a" data-i="${i}">저장</button></span></div>`
      :`<div class="ans ${q.a?'':'empty-a'}" data-pid="${p.id}" data-qi="${i}">${q.a?h:'아직 답변이 없어요'}</div>
        <div class="qbar"><span class="cnt ${q.n&&len>q.n?'over':''}">${len.toLocaleString()} / ${q.n?q.n.toLocaleString():'-'}자</span>${q.a?'<span>· 문장을 드래그하면 댓글을 달 수 있어요</span>':''}<span class="sp">${statusH}${btn}</span></div>`}
-   ${cs.length?cmtList(p,cs,lost,p.id+':'+i):''}</div>`;
+   ${cs.length?qCmts(p,cs,lost,placed,p.id+':'+i):''}</div>`;
 }
 function detailHTML(p){
   const r=!mine(p);
@@ -420,6 +429,20 @@ function detailHTML(p){
    <div class="selbar" id="selbar" hidden><span id="selTxt"></span><button data-act="sel-c">💬 댓글</button></div>
   </div>`;
 }
+let popT=null;
+function markFor(id){return [...document.querySelectorAll('mark[data-cs]')].find(m=>m.dataset.cs.split(' ').includes(id))}
+function showPop(mark,pin){const p=S.open&&find(S.open);if(!p||!mark)return;const ids=mark.dataset.cs.split(' ').filter(Boolean);
+  let el=document.getElementById('cpop');if(!el){el=document.createElement('div');el.id='cpop';app.appendChild(el)}
+  el.innerHTML=`<div class="cpop-h"><span>댓글 ${ids.length}</span><button class="x" data-act="pop-close" aria-label="닫기">✕</button></div>`+ids.map(id=>{const c=p.comments.find(x=>x.id===id);return c?cmtH(p,c,[]):''}).join('');
+  el.hidden=false;el.dataset.ids=ids.join(' ');
+  if(narrow()){el.className='cpop sheetpop';el.style.cssText=''}
+  else{el.className='cpop';const r=mark.getBoundingClientRect(),W=Math.min(380,window.innerWidth-24);el.style.width=W+'px';
+    el.style.left=Math.min(Math.max(12,r.left),window.innerWidth-W-12)+'px';let top=r.bottom+8;el.style.top=top+'px';
+    const hh=el.offsetHeight;if(top+hh>window.innerHeight-12)el.style.top=Math.max(12,r.top-hh-8)+'px'}
+  document.querySelectorAll('mark.on').forEach(m=>m.classList.remove('on'));mark.classList.add('on');
+  if(pin)S.pin=ids[0];
+  const rt=el.querySelector('#rTxt');if(rt)rt.focus()}
+function hidePop(){const el=document.getElementById('cpop');if(el)el.hidden=true;S.pin=null;document.querySelectorAll('mark.on').forEach(m=>m.classList.remove('on'))}
 function markRead(p){if(!mine(p))return;p.comments.forEach(c=>{if(c.by!==S.me&&!c.read){c.read=true;dirtyC(p,c)}})}
 function renderLayer(){
   if(!S.me){layer.innerHTML=startHTML();return}
@@ -430,7 +453,8 @@ function renderLayer(){
   layer.innerHTML=h;
   const sh=layer.querySelector('.sheet');if(sh&&sc&&!S.flash)sh.scrollTop=sc;
   if(S.form&&S.form.focus){const el=document.getElementById('fDue')||document.getElementById('fRecheck');if(el)el.focus();S.form.focus=null}
-  if(S.flash){const el=document.getElementById('c-'+S.flash);if(el&&el.scrollIntoView)el.scrollIntoView({block:'center'})}
+  if(S.flash){const m=markFor(S.flash);const el=m||document.getElementById('c-'+S.flash);if(el&&el.scrollIntoView)el.scrollIntoView({block:'center'});if(m){S.pin=S.flash;}S.flash=null}
+  if(S.pin&&S.open){const m=markFor(S.pin);if(m)showPop(m,true);else hidePop()}else{const el=document.getElementById('cpop');if(el&&!S.open)el.hidden=true}
   const ta=$('#ansTa');if(ta&&document.activeElement!==ta)ta.focus();
 }
 
@@ -582,6 +606,7 @@ function render(){
 
 /* ================= 이벤트 ================= */
 document.addEventListener('click',e=>{
+  if(S.pin&&e.target.closest&&!e.target.closest('#cpop')&&!e.target.closest('mark[data-cs]'))hidePop();
   const t=e.target.closest('[data-act]');if(!t)return;
   if(t.tagName==='INPUT'||t.tagName==='SELECT'||t.tagName==='LABEL')return;
   const a=t.dataset.act,v=t.dataset.v,id=t.dataset.id;
@@ -596,7 +621,7 @@ document.addEventListener('click',e=>{
     case 'nav':S.view=v;S.open=null;S.dlg=null;render();break;
     case 'open':S.open=id;S.delAsk=false;S.editQ=null;S.flash=null;S.replyTo=null;{const q=find(id);if(q)markRead(q)}render();break;
     case 'open-c':S.open=id;S.flash=t.dataset.c;S.editQ=null;{const q=find(id);if(q)markRead(q)}render();break;
-    case 'close':S.open=null;S.delAsk=false;S.editQ=null;S.flash=null;render();break;
+    case 'close':S.open=null;S.delAsk=false;S.editQ=null;S.flash=null;hidePop();render();break;
     case 'dlg-close':closeDlg();break;
     case 'undo':if(S.undo){const q=find(S.undo.id);if(q){restore(q,S.undo.before);dirty(q)}S.undo=null;render();toast('되돌렸어요')}break;
     case 'stage-menu':stageMenu(id);break;
@@ -616,11 +641,12 @@ document.addEventListener('click',e=>{
     case 'cancel-a':S.editQ=null;renderLayer();break;
     case 'save-a':if(p){const q=p.qs[+t.dataset.i];q.a=$('#ansTa').value;if(q.st==='미작성'&&q.a.trim())q.st='초안';S.editQ=null;dirty(p);render();toast('답변을 저장했어요')}break;
     case 'unlock':if(p){p.qs[+t.dataset.i].lock=false;dirty(p);renderLayer();toast('잠금을 풀었어요. 다 고치면 다시 제출본으로 바꿔 주세요')}break;
-    case 'goto-c':S.flash=t.dataset.c;renderLayer();break;
+    case 'pin-c':showPop(t,true);break;
+    case 'pop-close':hidePop();break;
     case 'sel-c':if(p&&S.sel)commentDlg(p,S.sel.qi,S.sel.quote);break;
     case 'c-ok':if(p&&S.sel){const x=$('#cTxt').value.trim();if(!x){toast('댓글 내용을 적어 주세요');break}const c={id:uid(),qi:S.sel.qi,quote:S.sel.quote,text:x,by:S.me,at:TODAY,replies:[],resolved:false,read:mine(p)};p.comments.push(c);dirtyC(p,c);S.sel=null;S.dlg=null;S.flash=c.id;render();toast(mine(p)?'댓글을 달았어요':`${nm(owner(p))} 님에게 댓글을 남겼어요`)}break;
     case 'add-pc':if(p){const x=$('#pcTxt').value.trim();if(!x){toast('내용을 적어 주세요');break}const c={id:uid(),qi:-1,quote:'',text:x,by:S.me,at:TODAY,replies:[],resolved:false,read:mine(p)};p.comments.push(c);dirtyC(p,c);render();toast('댓글을 남겼어요')}break;
-    case 'reply':S.replyTo=S.replyTo===t.dataset.c?null:t.dataset.c;renderLayer();{const r=$('#rTxt');if(r)r.focus()}break;
+    case 'reply':S.replyTo=S.replyTo===t.dataset.c?null:t.dataset.c;if(t.closest('#cpop')){const pp=document.getElementById('cpop');S.pin=(pp.dataset.ids||'').split(' ')[0]||S.pin}renderLayer();{const r=$('#rTxt');if(r)r.focus()}break;
     case 'reply-ok':if(p){const c=p.comments.find(x=>x.id===t.dataset.c);const x=$('#rTxt').value.trim();if(c&&x){c.replies.push({text:x,by:S.me,at:TODAY});if(owner(p)!==S.me)c.read=false;dirtyC(p,c);S.replyTo=null;render()}}break;
     case 'resolve':if(p){const c=p.comments.find(x=>x.id===t.dataset.c);if(c){c.resolved=!c.resolved;dirtyC(p,c);render();toast(c.resolved?'해결로 표시했어요':'다시 열었어요')}}break;
     case 'show-res':S.showRes[v]=!S.showRes[v];renderLayer();break;
@@ -690,6 +716,11 @@ document.addEventListener('input',e=>{
   if(el.dataset&&el.dataset.f){const f=el.closest('.field');if(f&&String(el.value).trim())f.classList.remove('missing');
     if(el.dataset.f==='co'&&S.form&&S.form.mode!=='edit'){const n=$('#dupNote');if(n)n.innerHTML=dupH(el.value,S.form.id)}}
 });
+document.addEventListener('mouseover',e=>{if(narrow()||!e.target.closest)return;const m=e.target.closest('mark[data-cs]');
+  if(m&&!S.pin){clearTimeout(popT);popT=setTimeout(()=>showPop(m,false),120)}else if(e.target.closest('#cpop'))clearTimeout(popT)});
+document.addEventListener('mouseout',e=>{if(S.pin||!e.target.closest)return;if(!e.target.closest('mark[data-cs],#cpop'))return;const to=e.relatedTarget;
+  if(to&&to.closest&&to.closest('mark[data-cs],#cpop'))return;clearTimeout(popT);popT=setTimeout(()=>{if(!S.pin)hidePop()},250)});
+document.addEventListener('scroll',()=>{const el=document.getElementById('cpop');if(!el||el.hidden||narrow())return;if(S.pin){const m=markFor(S.pin);if(m)showPop(m,true)}else hidePop()},true);
 document.addEventListener('selectionchange',()=>{
   const bar=$('#selbar');if(!bar)return;
   const sel=window.getSelection&&window.getSelection();const txt=sel?String(sel).trim():'';
