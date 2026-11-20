@@ -376,6 +376,21 @@ body{padding:0}
 .kind.k-due{background:var(--due-soft);color:var(--due)}
 .legend .k-due{color:var(--due);font-weight:600}
 .dd.urgent{background:var(--due-soft);color:var(--due)}
+/* 달력: 화면 높이에 맞춰 꽉 차게 (PC) */
+.cal.fill{display:flex;flex-direction:column;height:calc(100vh - 175px);height:calc(100dvh - 175px);min-height:600px}
+.cal.fill .grid7{flex:1;min-height:0}
+.cal.fill .cell{min-height:0;overflow:hidden;position:relative}
+.cal.fill .cell.week{min-height:0}
+.cal .ev{font-size:13px;line-height:1.5}
+.cal .cell .n{font-size:13px}
+@container app (max-width:760px){
+  .cal.fill{height:auto;min-height:0}
+  .cal.fill .grid7{grid-template-rows:auto!important}
+  .cal.fill .cell{min-height:64px}
+  .cal.fill .cell.week{min-height:150px}
+  .cal .ev{font-size:10px;line-height:1.3}
+  .cal .cell .n{font-size:12px}
+}
 </style>
 </head>
 <body>
@@ -625,8 +640,8 @@ function calHTML(){
     if(mode==='week'){const ws=weekStart(S.calSel);for(let i=0;i<7;i++)cells.push(addDays(ws,i));title=`${md(cells[0])} ~ ${md(cells[6])}`}
     else{const y=S.calY,mo=S.calM,first=new Date(y,mo,1),off=(first.getDay()+6)%7,dim=new Date(y,mo+1,0).getDate(),start=new Date(y,mo,1-off),rows=Math.ceil((off+dim)/7);
       for(let i=0;i<rows*7;i++){const d=new Date(start);d.setDate(start.getDate()+i);cells.push(iso(d))}title=`${y}년 ${mo+1}월`}
-    const lim=mode==='week'?8:3;
-    body=`<div class="grid7">${['월','화','수','목','금','토','일'].map(w=>`<div class="wd">${w}</div>`).join('')}${cells.map(k=>{const ev=evm[k]||[];const oth=mode==='month'&&dt(k).getMonth()!==S.calM;
+    const lim=99;
+    body=`<div class="grid7" style="grid-template-rows:auto repeat(${cells.length/7},minmax(0,1fr))">${['월','화','수','목','금','토','일'].map(w=>`<div class="wd">${w}</div>`).join('')}${cells.map(k=>{const ev=evm[k]||[];const oth=mode==='month'&&dt(k).getMonth()!==S.calM;
       return `<button class="cell ${oth?'other':''} ${k===TODAY?'today':''} ${k===S.calSel?'sel':''} ${mode==='week'?'week':''}" data-act="cal-day" data-v="${k}"><span class="n">${dt(k).getDate()}</span>${ev.slice(0,lim).map(x=>`<span class="ev k-${x.e.k} ${x.w!==S.who?'p':''}" title="${esc((KIND[x.e.k]||KIND.etc)[1]+' · '+full(x.p))}">${(KIND[x.e.k]||KIND.etc)[0]}<span class="tx">${esc(label(x.p))}</span></span>`).join('')}${ev.length>lim?`<span class="ev muted">+${ev.length-lim}</span>`:''}</button>`}).join('')}</div>
      <div class="legend">${Object.entries(KIND).filter(([k])=>k!=='sub').map(([k,v])=>`<span class="${k==='due'?'k-due':''}">${v[0]} ${v[1]}</span>`).join('')}${ro()?'':`<span style="opacity:.55">흐린 표시 = ${esc(nm(other(S.me)))}</span>`}</div>`;
     const sel=evm[S.calSel]||[];
@@ -636,7 +651,7 @@ function calHTML(){
   const arrowsR=mode==='list'?'':`<button class="icon-btn" data-act="cal-next" aria-label="다음">›</button>`;
   const empty=!vis(S.who).length&&!ro()?`<div class="note info" style="margin-bottom:12px">아직 공고가 없어요. <b>+ 공고 추가</b>로 첫 공고를 넣어 보세요.</div>`:'';
   return `${roBanner()}${empty}<div class="view-head"><h2>${esc(nm(S.who))}의 달력</h2>${ro()?'':`<label class="toggle"><input type="checkbox" class="chk" data-ch="overlay" ${S.overlay?'checked':''}> 👀 ${esc(nm(other(S.me)))} 일정 같이 보기</label>`}</div>
-  <div class="cal-wrap ${mode==='list'?'full':''}"><div class="cal"><div class="cal-h">${seg}${arrows}<strong>${title}</strong>${arrowsR}<button class="btn sm" style="margin-left:auto" data-act="cal-today">오늘</button></div>${body}</div>${side}</div>`;
+  <div class="cal-wrap ${mode==='list'?'full':''}"><div class="cal ${mode==='list'?'':'fill'}"><div class="cal-h">${seg}${arrows}<strong>${title}</strong>${arrowsR}<button class="btn sm" style="margin-left:auto" data-act="cal-today">오늘</button></div>${body}</div>${side}</div>`;
 }
 
 /* ================= S2 홈 ================= */
@@ -930,11 +945,20 @@ async function runExtract(){
   catch(e){if(S.add!==A)return;A.phase='input';if(e.code==='need_capture')A.tab='cap';A.warn=errMsg(e);addDlg()}
 }
 
+/* ================= 달력 칸 맞추기: 칸 높이에 들어가는 만큼만 보이고 나머지는 +N ================= */
+function fitCells(){document.querySelectorAll('.cal.fill .cell').forEach(c=>{
+  c.querySelectorAll('.more').forEach(m=>m.remove());const evs=[...c.querySelectorAll('.ev')];evs.forEach(e=>e.hidden=false);if(!evs.length)return;
+  const H=c.clientHeight;const fits=e=>e.offsetTop+e.offsetHeight<=H-2;if(fits(evs[evs.length-1]))return;
+  let k=evs.length;while(k>0&&!fits(evs[k-1]))k--;k=Math.max(0,k-1);
+  evs.slice(k).forEach(e=>e.hidden=true);const m=document.createElement('span');m.className='ev muted more';m.textContent='+'+(evs.length-k);c.appendChild(m)})}
+let fitT=null;window.addEventListener('resize',()=>{clearTimeout(fitT);fitT=setTimeout(()=>{if(S.view==='cal')fitCells()},120)});
+
 /* ================= 렌더 ================= */
 function render(){
   if(!S.me){main.innerHTML='';app.classList.add('starting');renderLayer();return}
   app.classList.remove('starting');
   renderNav();main.innerHTML=S.view==='home'?homeHTML():S.view==='board'?boardHTML():S.view==='cal'?calHTML():recHTML();renderLayer();
+  if(S.view==='cal')requestAnimationFrame(fitCells);
 }
 
 /* ================= 이벤트 ================= */
