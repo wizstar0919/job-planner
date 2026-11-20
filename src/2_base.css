@@ -1,28 +1,31 @@
 <style>
 /* 레이아웃: 상단바 + (PC) 왼쪽 메뉴·본문 / (폰) 본문·하단 탭바. 앱 폭 기준 컨테이너 쿼리로 전환 */
 :root{
-  --bg:#F3F5F2; --surface:#FFFFFF; --surface-2:#EBEEEA; --line:#DCE1DB;
-  --fg:#1A231F; --muted:#66716B; --accent:#1D6A5A; --accent-fg:#FFFFFF; --accent-soft:#DCEDE7;
-  --urgent:#B93A27; --urgent-soft:#FBE5E0; --warn:#A35F00; --warn-soft:#FFF1D2;
-  --ok:#2A7A4B; --ok-soft:#DDF1E4; --ro:#ECEEF3; --scrim:rgba(20,26,23,.38); --shadow:rgba(20,30,25,.10);
-  --frame:#2B302D;
-  --s1:#8C96A3; --s2:#C08A2A; --s3:#3A74B5; --s4:#1D6A5A; --s5:#59615C;
+  --bg:#F4F4F5; --surface:#FFFFFF; --surface-2:#EDEDEF; --line:#DEDEE2;
+  --fg:#18181B; --muted:#6B6B73; --accent:#0E8C6D; --accent-fg:#FFFFFF; --accent-soft:#DDF3EC;
+  --urgent:#C4321F; --urgent-soft:#FDE6E2; --warn:#A35F00; --warn-soft:#FFF1D2;
+  --ok:#2A7A4B; --ok-soft:#DDF1E4; --ro:#EFEFF2; --scrim:rgba(0,0,0,.38); --shadow:rgba(0,0,0,.10);
+  --frame:#2A2A2E;
+  --s1:#8E8E96; --s2:#C08A2A; --s3:#3A74B5; --s4:#0E8C6D; --s5:#5C5C63;
+  --due:#D9480F; --due-soft:#FFE8D9;
   --f-body:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
   --f-num:"IBM Plex Mono",ui-monospace,Consolas,monospace;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#121715; --surface:#1A201D; --surface-2:#242B28; --line:#303A35;
-  --fg:#E5ECE8; --muted:#97A39C; --accent:#5DC0A6; --accent-fg:#0E1A16; --accent-soft:#1E3932;
-  --urgent:#FF8069; --urgent-soft:#3D1F1A; --warn:#F0B54E; --warn-soft:#3A2E13;
-  --ok:#6FCB8E; --ok-soft:#1C3325; --ro:#1B1E26; --scrim:rgba(0,0,0,.55); --shadow:rgba(0,0,0,.4);
-  --frame:#3A403C; --s1:#8F9AA8; --s2:#E0A94A; --s3:#6EA4E0; --s4:#5DC0A6; --s5:#8D968F;
+  --bg:#111113; --surface:#1B1B1E; --surface-2:#26262A; --line:#34343A;
+  --fg:#EDEDEF; --muted:#9C9CA4; --accent:#2FD3A2; --accent-fg:#06140F; --accent-soft:#1C2F29;
+  --urgent:#FF7B66; --urgent-soft:#3B1F1A; --warn:#F0B54E; --warn-soft:#3A2E13;
+  --ok:#6FCB8E; --ok-soft:#1C3325; --ro:#18181B; --scrim:rgba(0,0,0,.6); --shadow:rgba(0,0,0,.45);
+  --frame:#3A3A40; --s1:#9696A0; --s2:#E0A94A; --s3:#6EA4E0; --s4:#2FD3A2; --s5:#8E8E96;
+  --due:#FF7A45; --due-soft:#3A2214;
   color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#121715; --surface:#1A201D; --surface-2:#242B28; --line:#303A35;
-  --fg:#E5ECE8; --muted:#97A39C; --accent:#5DC0A6; --accent-fg:#0E1A16; --accent-soft:#1E3932;
-  --urgent:#FF8069; --urgent-soft:#3D1F1A; --warn:#F0B54E; --warn-soft:#3A2E13;
-  --ok:#6FCB8E; --ok-soft:#1C3325; --ro:#1B1E26; --scrim:rgba(0,0,0,.55); --shadow:rgba(0,0,0,.4);
-  --frame:#3A403C; --s1:#8F9AA8; --s2:#E0A94A; --s3:#6EA4E0; --s4:#5DC0A6; --s5:#8D968F;
+  --bg:#111113; --surface:#1B1B1E; --surface-2:#26262A; --line:#34343A;
+  --fg:#EDEDEF; --muted:#9C9CA4; --accent:#2FD3A2; --accent-fg:#06140F; --accent-soft:#1C2F29;
+  --urgent:#FF7B66; --urgent-soft:#3B1F1A; --warn:#F0B54E; --warn-soft:#3A2E13;
+  --ok:#6FCB8E; --ok-soft:#1C3325; --ro:#18181B; --scrim:rgba(0,0,0,.6); --shadow:rgba(0,0,0,.45);
+  --frame:#3A3A40; --s1:#9696A0; --s2:#E0A94A; --s3:#6EA4E0; --s4:#2FD3A2; --s5:#8E8E96;
+  --due:#FF7A45; --due-soft:#3A2214;
   color-scheme:dark}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:14px;line-height:1.5;

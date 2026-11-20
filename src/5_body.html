@@ -161,7 +161,7 @@ const shortCo=s=>String(s||'').replace(/\(주\)|㈜|주식회사/g,'').replace(/
 const shortRole=s=>String(s||'').replace(/\s*\([^)]*\)/g,'').trim();
 const label=p=>`[${shortCo(p.co)}] ${shortRole(p.role||p.job)}`;
 const full=p=>`[${String(p.co).trim()}] ${p.role||p.job}`;
-function evsOf(p){const a=(p.events||[]).map(e=>Object.assign({},e));if(p.dueKind==='확정'&&p.due&&p.stage!=='종료')a.push({d:p.due.slice(0,10),k:'due',t:'서류 마감 '+p.due.slice(11,16)});if(p.submitted)a.push({d:p.submitted,k:'sub',t:'제출'});return a}
+function evsOf(p){const a=(p.events||[]).map(e=>Object.assign({},e));if(p.dueKind==='확정'&&p.due&&p.stage!=='종료')a.push({d:p.due.slice(0,10),k:'due',t:'서류 마감 '+p.due.slice(11,16)});return a}
 function nextEv(p){return (p.events||[]).filter(e=>diff(e.d)>=0).sort((a,b)=>a.d.localeCompare(b.d))[0]}
 function tasksOf(w){const out=[];DB[w].posts.forEach(p=>p.tasks.forEach((t,i)=>out.push({t,p,key:p.id+':'+i})));DB[w].tasks.forEach((t,i)=>out.push({t,p:null,key:'g:'+w+':'+i}));return out}
 function dueText(p){if(p.dueKind==='확정'&&p.due)return `${md(p.due)} ${p.due.slice(11,16)} 마감`;if(p.dueKind==='채용시')return '채용 시 마감';return '마감 미확인'+(p.recheck?` · ${md(p.recheck)} 재확인`:'')}
@@ -230,7 +230,7 @@ async function enter(w){
 function calEvents(){const m={};const add=(w,p)=>evsOf(p).forEach(e=>{(m[e.d]=m[e.d]||[]).push({w,p,e})});
   vis(S.who).forEach(p=>add(S.who,p));if(!ro()&&S.overlay)vis(other(S.me)).forEach(p=>add(other(S.me),p));return m}
 function weekStart(s){const d=dt(s);const off=(d.getDay()+6)%7;d.setDate(d.getDate()-off);return iso(d)}
-function evRow(x){return rowOpen(x.p.id,x.w!==S.who?'partner':'',`<span class="kind">${KIND[x.e.k]?KIND[x.e.k][0]:'•'}</span><span class="grow"><div class="t oneline" title="${esc(full(x.p))}">${x.w!==S.who?'('+esc(nm(x.w))+') ':''}${esc(label(x.p))}</div><div class="s">${esc(x.e.t)}</div></span><span class="chev">›</span>`)}
+function evRow(x){return rowOpen(x.p.id,x.w!==S.who?'partner':'',`<span class="kind k-${x.e.k}">${KIND[x.e.k]?KIND[x.e.k][0]:'•'}</span><span class="grow"><div class="t oneline" title="${esc(full(x.p))}">${x.w!==S.who?'('+esc(nm(x.w))+') ':''}${esc(label(x.p))}</div><div class="s">${esc(x.e.t)}</div></span><span class="chev">›</span>`)}
 function calHTML(){
   const mode=S.calMode,evm=calEvents();
   const seg=`<div class="seg">${[['list','목록'],['month','월'],['week','주']].map(m=>`<button class="${mode===m[0]?'on':''}" data-act="cal-mode" data-v="${m[0]}">${m[1]}</button>`).join('')}</div>`;
@@ -246,8 +246,8 @@ function calHTML(){
       for(let i=0;i<rows*7;i++){const d=new Date(start);d.setDate(start.getDate()+i);cells.push(iso(d))}title=`${y}년 ${mo+1}월`}
     const lim=mode==='week'?8:3;
     body=`<div class="grid7">${['월','화','수','목','금','토','일'].map(w=>`<div class="wd">${w}</div>`).join('')}${cells.map(k=>{const ev=evm[k]||[];const oth=mode==='month'&&dt(k).getMonth()!==S.calM;
-      return `<button class="cell ${oth?'other':''} ${k===TODAY?'today':''} ${k===S.calSel?'sel':''} ${mode==='week'?'week':''}" data-act="cal-day" data-v="${k}"><span class="n">${dt(k).getDate()}</span>${ev.slice(0,lim).map(x=>`<span class="ev ${x.w!==S.who?'p':''}" title="${esc((KIND[x.e.k]||KIND.etc)[1]+' · '+full(x.p))}">${(KIND[x.e.k]||KIND.etc)[0]}<span class="tx">${esc(label(x.p))}</span></span>`).join('')}${ev.length>lim?`<span class="ev muted">+${ev.length-lim}</span>`:''}</button>`}).join('')}</div>
-     <div class="legend">${Object.values(KIND).map(k=>`<span>${k[0]} ${k[1]}</span>`).join('')}${ro()?'':`<span style="opacity:.55">흐린 표시 = ${esc(nm(other(S.me)))}</span>`}</div>`;
+      return `<button class="cell ${oth?'other':''} ${k===TODAY?'today':''} ${k===S.calSel?'sel':''} ${mode==='week'?'week':''}" data-act="cal-day" data-v="${k}"><span class="n">${dt(k).getDate()}</span>${ev.slice(0,lim).map(x=>`<span class="ev k-${x.e.k} ${x.w!==S.who?'p':''}" title="${esc((KIND[x.e.k]||KIND.etc)[1]+' · '+full(x.p))}">${(KIND[x.e.k]||KIND.etc)[0]}<span class="tx">${esc(label(x.p))}</span></span>`).join('')}${ev.length>lim?`<span class="ev muted">+${ev.length-lim}</span>`:''}</button>`}).join('')}</div>
+     <div class="legend">${Object.entries(KIND).filter(([k])=>k!=='sub').map(([k,v])=>`<span class="${k==='due'?'k-due':''}">${v[0]} ${v[1]}</span>`).join('')}${ro()?'':`<span style="opacity:.55">흐린 표시 = ${esc(nm(other(S.me)))}</span>`}</div>`;
     const sel=evm[S.calSel]||[];
     side=`<section class="sec"><h3>${md(S.calSel)} <span class="count">${sel.length}</span></h3><div class="list">${sel.length?sel.map(evRow).join(''):'<div class="empty">이 날은 일정이 없어요</div>'}</div></section>`;
   }

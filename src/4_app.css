@@ -14,3 +14,10 @@ body{padding:0}
   .main{padding-left:max(14px,env(safe-area-inset-left,0px));padding-right:max(14px,env(safe-area-inset-right,0px))}
   .sync{display:none}
 }
+/* 달력: 오늘 칸은 테두리만, 서류 마감은 눈에 띄게 */
+.cell.sel{background:transparent;box-shadow:inset 0 0 0 2px var(--accent)}
+.ev.k-due{color:var(--due);font-weight:700;background:var(--due-soft);border-radius:4px;padding:0 4px}
+.ev.k-due.p{opacity:.6}
+.kind.k-due{background:var(--due-soft);color:var(--due)}
+.legend .k-due{color:var(--due);font-weight:600}
+.dd.urgent{background:var(--due-soft);color:var(--due)}
