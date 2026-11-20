@@ -688,7 +688,7 @@ function settingsDlg(){const w=S.me;show(()=>dlgHead('설정 · '+esc(nm(w)))+`<
   <div class="set-row"><div><b>앱 비밀번호</b><div class="muted small">두 사람이 같이 쓰는 비밀번호</div></div><span class="ok-t">✅ 이 기기에 저장됨</span></div>
   <div class="set-row"><div><b>이 기기에서 바로 들어가기</b><div class="muted small">켜면 시작 화면 없이 ${esc(nm(w))} 화면으로</div></div><input type="checkbox" class="chk" id="remember2" ${cfg.remember?'checked':''} aria-label="바로 들어가기"></div>
   <div class="set-row"><div><b>공고 정리</b><div class="muted small">${usage.hasKey===false?'API 키가 아직 연결되지 않았어요':`오늘 ${usage.used} / ${usage.limit}회 사용`}</div></div>${sheets[w]?`<a class="link-btn" href="${esc(sheets[w])}" target="_blank" rel="noopener">${esc(nm(w))} 시트 열기 ↗</a>`:''}</div>
-  <div class="set-row" style="flex-direction:column;align-items:stretch;gap:8px"><b>내 직무 선택지</b><div class="jobs">${DB[w].jobs.map(j=>`<span>${esc(j)}</span>`).join('')}</div><div class="inline"><input type="text" id="jobNew" placeholder="직무 추가 (예: 손익관리)"><button class="btn sm" data-act="job-add">추가</button></div></div>
+  <div class="set-row" style="flex-direction:column;align-items:stretch;gap:8px"><b>내 직무 선택지</b><span class="muted small">공고 정리 때 이 목록으로 분류하고, 직무가 여러 개인 공고에선 여기 없는 직무를 빼고 보여 줘요</span><div class="jobs">${DB[w].jobs.map(j=>`<span>${esc(j)}${ro()?'':` <button class="x-btn" data-act="job-del" data-v="${esc(j)}" aria-label="${esc(j)} 빼기" title="목록에서 빼기">✕</button>`}</span>`).join('')}</div><div class="inline"><input type="text" id="jobNew" placeholder="직무 추가 (예: 손익관리)"><button class="btn sm" data-act="job-add">추가</button></div></div>
   <div class="set-row" style="flex-direction:column;align-items:stretch;gap:6px"><b>자동 할 일</b><span class="muted small">켜 둔 것만 ${esc(nm(w))} 님 할 일에 자동으로 생겨요</span>
    ${[['q','작성 중으로 옮기면 → 문항마다 "N번 문항 작성" (마감 3일 전)'],['pre','마감 확정 공고 → "제출 전 최종 점검" (마감 2일 전)'],['res','제출하면 → "결과 확인" (2주 뒤)'],['recheck','마감 미확인 → "마감 재확인" (재확인 날짜)']].map(([k,t])=>`<label class="toggle"><input type="checkbox" class="chk" data-auto="${k}" ${DB[w].auto[k]?'checked':''}> ${t}</label>`).join('')}</div>
   <div class="set-row"><div><b>휴대폰에서 앱처럼 쓰기</b><div class="muted small">브라우저 메뉴 → "홈 화면에 추가"</div></div></div>
@@ -815,7 +815,9 @@ async function runExtract(){
   if((A.imgUrls||[]).length)input.imageUrls=A.imgUrls.slice(0,MAX_IMGS);
   A.phase='loading';addDlg();
   try{const j=await api('extract',{input});if(S.add!==A)return;if(j.usage){usage=j.usage;LS.set('usage',usage)}const d=j.data;
-    if((d.positions||[]).length>1){A.res={d,url:input.url||''};A.phase='pick';addDlg();return}
+    if((d.positions||[]).length>1){const fit=d.positions.filter(posFits);
+      if(fit.length===1){reviewFrom(A,d,input.url||'',fit[0]);return}/* 맞는 직무가 하나뿐이면 바로 확인 화면 */
+      A.res={d,url:input.url||''};A.showAll=false;A.phase='pick';addDlg();return}
     reviewFrom(A,d,input.url||'')}
   catch(e){if(S.add!==A)return;A.phase='input';if(e.code==='need_capture')A.tab='cap';if(e.code==='unreadable'&&e.usage){usage=e.usage;LS.set('usage',usage)}
     let why='';if(e.code==='api_error'&&e.detail){try{why=JSON.parse(e.detail).error.message}catch(x){why=String(e.detail).slice(0,120)}}
@@ -825,13 +827,16 @@ async function runExtract(){
 function posRank(list){const cnt={};vis(S.me).filter(isSub).forEach(p=>{if(p.job)cnt[p.job]=(cnt[p.job]||0)+1});
   const top=Object.entries(cnt).sort((a,b)=>b[1]-a[1]).slice(0,3).map(x=>x[0]);
   return list.map((x,i)=>({x,i,c:cnt[x.job]||0,rec:!!x.job&&top.includes(x.job)})).sort((a,b)=>(b.rec-a.rec)||(b.c-a.c)||(a.i-b.i))}
-function pickHTML(a){const d=a.res.d,rows=posRank(d.positions);
+/* 내 직무 선택지(설정)에 있는 분류만 '맞는 직무'로 봄. 개발·연구 등은 숨김 */
+const posFits=x=>!!x.job&&DB[S.me].jobs.includes(x.job);
+function pickHTML(a){const d=a.res.d,all=posRank(d.positions),rows=all.filter(r=>a.showAll||posFits(r.x)),hid=all.length-all.filter(r=>posFits(r.x)).length;
   return dlgHead('공고 추가')+`<div class="dlg-b">
-   <div class="note info"><b>${esc(d.co||'이 공고')}</b>엔 모집 직무가 <b>${d.positions.length}개</b> 있어요. 지원할 직무를 하나 골라 주세요</div>
+   <div class="note info"><b>${esc(d.co||'이 공고')}</b>엔 모집 직무가 <b>${d.positions.length}개</b> 있어요.${hid&&!a.showAll?` 내 직무와 안 맞는 ${hid}개는 뺐어요.`:''} 지원할 직무를 하나 골라 주세요</div>
+   ${rows.length?'':'<div class="empty">내 직무 선택지에 맞는 직무가 없어요</div>'}
    <div class="pos-list">${rows.map(r=>`<button class="pos ${r.rec?'rec':''}" data-act="pick-pos" data-v="${r.i}">
      <span class="pos-t">${r.rec?'<span class="pill ok">추천</span> ':''}<b>${esc(r.x.role||'(이름 없음)')}</b></span>
      <span class="pos-s muted small">${[r.x.job,r.x.career,r.x.loc,r.x.note].filter(Boolean).map(esc).join(' · ')}${r.rec?` · 자주 지원한 직무 (${esc(r.x.job)} ${r.c}건)`:''}</span></button>`).join('')}</div>
-   <button class="link-btn small" data-act="pick-back">‹ 다시 정리하기</button></div>`}
+   <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><button class="link-btn small" data-act="pick-back">‹ 다시 정리하기</button>${hid?`<button class="link-btn small" data-act="pick-all">${a.showAll?'맞는 직무만 보기':`뺀 직무 ${hid}개도 보기`}</button>`:''}</div></div>`}
 function reviewFrom(A,d,url,pos){pos=pos||{};
     A.phase='review';S.form={mode:'review',v:{co:d.co||'',short:d.short||'',job:pos.job||d.job||'',role:pos.role||d.role||'',type:d.type||'',ind:d.ind||'',loc:pos.loc||d.loc||'',applyStart:d.applyStart||'',dueKind:d.dueKind||'미확인',due:(d.due||'').slice(0,16),recheck:'',
       steps:(d.steps&&d.steps.length?d.steps:['서류']).join(' > '),link:url,relLink:'',events:(d.events||[]).filter(e=>/^\d{4}-\d{2}-\d{2}/.test(e.d)).map(e=>({d:e.d.slice(0,10),k:e.k,t:e.t})),qs:(d.qs||[]).map(q=>({t:q.t,n:q.n||0})),memo:[pos.note?`지원 직무: ${pos.role}${pos.career?' ('+pos.career+')':''} — ${pos.note}`:'',d.memo||''].filter(Boolean).join(' · '),stage:'관심'}};
@@ -938,6 +943,7 @@ document.addEventListener('click',e=>{
     case 'del-no':S.delAsk=false;renderLayer();break;
     case 'del-yes':if(p){const w=owner(p),L=DB[w].posts;L.splice(L.indexOf(p),1);delRemote(p,w);S.open=null;S.delAsk=false;render();toast('삭제했어요')}break;
     case 'settings':if(S.me)settingsDlg();break;
+    case 'job-del':{const L=DB[S.me].jobs,i=L.indexOf(v);if(i>=0&&L.length>1){L.splice(i,1);dirtyS(S.me);settingsDlg();toast(`'${v}'를 직무 선택지에서 뺐어요 (기존 공고는 그대로)`)}break}
     case 'job-add':{const x=$('#jobNew').value.trim();if(x&&!DB[S.me].jobs.includes(x)){DB[S.me].jobs.push(x);dirtyS(S.me);settingsDlg();toast('직무를 추가했어요')}break}
     case 'copy-invite':{const link=location.origin+location.pathname+'#s='+encodeURIComponent(cfg.server);
       try{navigator.clipboard.writeText(link).then(()=>toast('초대 링크를 복사했어요. 비밀번호는 따로 알려 주세요'),()=>toast('복사가 막혀 있어요'))}catch(_){toast('복사가 막혀 있어요')}break}
@@ -951,6 +957,7 @@ document.addEventListener('click',e=>{
     case 'add-img-url':{const el=$('#aImgUrl');addImgUrl(el?el.value:'');break}
     case 'paste-clip':pasteClip();break;
     case 'pick-pos':if(S.add&&S.add.res){const r=S.add.res;reviewFrom(S.add,r.d,r.url,r.d.positions[+v])}break;
+    case 'pick-all':if(S.add){S.add.showAll=!S.add.showAll;addDlg()}break;
     case 'pick-back':if(S.add){S.add.phase='input';S.add.res=null;addDlg()}break;
     case 'extract':runExtract();break;
     case 'manual':readAddInputs();S.form={mode:'manual',v:Object.assign(BLANK(),{link:S.add.link||''})};S.add.lastForm=S.form;S.add.phase='review';formDlg();break;
