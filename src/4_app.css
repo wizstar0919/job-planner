@@ -188,3 +188,36 @@ mark[data-cs]{cursor:pointer}
 @container app (max-width:760px){.app.side-off .fab{right:calc(16px + env(safe-area-inset-right,0px));bottom:calc(78px + env(safe-area-inset-bottom,0px));width:54px;height:54px}}
 @container app (max-width:760px){table.ltable{min-width:0}.ltable td,.ltable th{padding-left:8px;padding-right:8px}}
 @container app (max-width:760px){.ltable td .sub{white-space:normal;max-width:none}.ltable td.num{white-space:nowrap}}
+
+/* 분석: 깔때기 · 월별 추이 · 분류별 통과율 */
+.stats.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+@container app (max-width:760px){.stats.two{grid-template-columns:minmax(0,1fr)}}
+.funnel{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+.fstep{display:grid;grid-template-columns:70px minmax(0,1fr) 30px 40px;align-items:center;gap:8px;font-size:13px}
+.fstep .track{display:block;height:14px;background:var(--surface-2);border-radius:4px;overflow:hidden}
+.fstep .fill{display:block;height:100%;background:var(--accent);border-radius:0 4px 4px 0}
+.fstep .num{text-align:right;font-family:var(--f-num);font-weight:600}
+.fstep .fp{text-align:right;font-size:12px}
+.months{display:flex;align-items:stretch;gap:3px;height:160px;margin-top:10px}
+.mcol{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;gap:3px;border-radius:6px;padding:2px 0}
+.mcol.pick{cursor:pointer}
+.mcol.pick:hover{background:var(--surface-2)}
+.mcol .mv{font-size:11px;font-family:var(--f-num);color:var(--muted);height:14px}
+.mcol .mbox{flex:1 1 0;width:100%;position:relative;min-height:0}
+.mcol .mbar{position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:min(24px,70%);background:var(--accent-soft);border-radius:4px 4px 0 0;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end}
+.mcol .mok{display:block;width:100%;background:var(--accent)}
+.mcol .ml{font-size:10.5px;color:var(--muted);white-space:nowrap}
+.legend{display:flex;gap:14px;margin-top:8px;color:var(--muted)}
+.legend .lg{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.lg.a{background:var(--accent-soft);border:1px solid var(--accent)}
+.lg.b{background:var(--accent)}
+.rtable tbody tr{cursor:pointer}
+.rtable tbody tr:hover{background:var(--surface-2)}
+.rate{display:flex;align-items:center;gap:8px}
+.rate .track{display:block;flex:1;max-width:180px;height:8px;background:var(--surface-2);border-radius:4px;overflow:hidden}
+.rate .fill{display:block;height:100%;background:var(--accent);border-radius:0 4px 4px 0}
+.rate .num{min-width:36px;text-align:right;font-family:var(--f-num)}
+.rate.few{opacity:.45}
+@container app (max-width:760px){.rtable .hide-n{display:none}table.rtable{min-width:0}.rate .muted{display:none}}
+.mcol .mbar,.lg.a{background:color-mix(in srgb,var(--accent) 32%,transparent)}
+.lg.a{border:0}
