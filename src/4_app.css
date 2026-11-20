@@ -54,3 +54,17 @@ body{padding:0}
   .cal .grid7 .ev{padding:0 2px;font-size:11px}
   .cal .grid7 .ev:not(.k-due){color:var(--fg)}
 }
+/* 보드 8칸 (PC: 가로로 나란히, 좁으면 가로 스크롤) */
+.board{grid-template-columns:repeat(8,minmax(160px,1fr));min-width:1320px}
+.prog{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}
+/* 휴대폰 보드: 단계를 위에서 아래로 */
+@container app (max-width:760px){
+  .coltabs{display:none}
+  .board{grid-template-columns:minmax(0,1fr);min-width:0;gap:18px}
+  .col,.col:not(.active){display:flex;background:transparent;padding:0;min-height:0}
+  .col-h{display:flex;font-size:15px;padding:0 2px;border-bottom:1px solid var(--line);padding-bottom:6px;margin-bottom:2px}
+  .col.empty-col{gap:0}
+  .col.empty-col .col-h{color:var(--muted);font-weight:500;font-size:13px;border-bottom:0;margin:0}
+  .col.empty-col .empty{display:none}
+}
+@container app (max-width:760px){.pc-only{display:none}}

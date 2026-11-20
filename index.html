@@ -409,6 +409,20 @@ body{padding:0}
   .cal .grid7 .ev{padding:0 2px;font-size:11px}
   .cal .grid7 .ev:not(.k-due){color:var(--fg)}
 }
+/* 보드 8칸 (PC: 가로로 나란히, 좁으면 가로 스크롤) */
+.board{grid-template-columns:repeat(8,minmax(160px,1fr));min-width:1320px}
+.prog{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}
+/* 휴대폰 보드: 단계를 위에서 아래로 */
+@container app (max-width:760px){
+  .coltabs{display:none}
+  .board{grid-template-columns:minmax(0,1fr);min-width:0;gap:18px}
+  .col,.col:not(.active){display:flex;background:transparent;padding:0;min-height:0}
+  .col-h{display:flex;font-size:15px;padding:0 2px;border-bottom:1px solid var(--line);padding-bottom:6px;margin-bottom:2px}
+  .col.empty-col{gap:0}
+  .col.empty-col .col-h{color:var(--muted);font-weight:500;font-size:13px;border-bottom:0;margin:0}
+  .col.empty-col .empty{display:none}
+}
+@container app (max-width:760px){.pc-only{display:none}}
 </style>
 </head>
 <body>
@@ -448,7 +462,11 @@ const ddC=n=>n<=1?'urgent':n<=3?'warn':'';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const KIND={due:['📝','서류 마감'],sub:['📤','제출'],apt:['🧠','인적성·AI역량'],int:['🎤','면접'],ann:['📢','결과 발표'],etc:['•','기타']};
-const COLS=[['관심','시작 전','--s1'],['작성중','작성 중','--s2'],['제출','제출','--s3'],['전형','전형 진행','--s4'],['종료','종료','--s5']];
+const COLS=[['관심','시작 전','--s1'],['작성중','작성 중','--s2'],['제출','제출','--s3'],['인적성','인적성·필기','--warn'],['면접1','1차 면접','--s4'],['면접2','2차 면접','--s4'],['면접3','3차 면접','--s4'],['종료','종료','--s5']];
+const PROC=['인적성','면접1','면접2','면접3'];
+const isProc=p=>PROC.includes(p.stage);
+function stageOfStep(s){s=String(s||'');if(/1차/.test(s))return '면접1';if(/2차/.test(s))return '면접2';if(/3차|최종|임원/.test(s))return '면접3';if(/인적성|필기|AI|역량|SKCT|코딩|TEST|테스트|과제|검사/i.test(s))return '인적성';if(/면접|인터뷰/.test(s))return '면접1';return '인적성'}
+function stepIdxFor(p,st){const i=p.steps.findIndex((s,j)=>j>0&&stageOfStep(s)===st);return i}
 const COLNAME=Object.fromEntries(COLS.map(c=>[c[0],c[1]]));
 const RESULTS=['최종합격','불합격','포기/무응답','인재풀'];
 const DUEKIND=[['확정','확정 (일시 있음)'],['채용시','채용 시 마감'],['미확인','미확인']];
@@ -494,6 +512,7 @@ function build(w,t){
   (t.hist||[]).forEach(r=>{const p=by[r.pid];if(p)p.hist.push({id:r.id,d:r.d,t:r.t})});
   (t.comments||[]).forEach(r=>{const p=by[r.pid];if(!p)return;let rep=[];try{rep=JSON.parse(r.replies||'[]')}catch(e){}
     p.comments.push({id:r.id,qi:r.qi===''?-1:+r.qi,quote:r.quote||'',text:r.text||'',by:r.by||'',at:r.at||'',replies:rep,resolved:r.resolved==='Y',read:r.read==='Y'})});
+  posts.forEach(p=>{if(p.stage==='전형'||!COLNAME[p.stage])p.stage=p.stage==='전형'?stageOfStep(p.steps[p.cur]):'관심'});
   posts.forEach(p=>{p.hist.sort((a,b)=>String(a.d).localeCompare(String(b.d)));if(!p.hist.length)p.hist=[{id:uid(),d:p.created||TODAY,t:'등록'}]});
   (t.settings||[]).forEach(r=>{try{if(r.k==='jobs')P0.jobs=JSON.parse(r.v);if(r.k==='auto')P0.auto=Object.assign({...DEFAULT_AUTO},JSON.parse(r.v))}catch(e){}});
   P0.posts=posts;return P0;
@@ -600,7 +619,7 @@ function meta(p){
     if(p.qs.length)h+=`<span class="muted">문항 ${p.qs.filter(q=>q.st==='제출본').length}/${p.qs.length}</span>`;
     const nc=p.comments.filter(c=>!c.resolved).length;if(nc)h+=`<span class="muted">💬${nc}</span>`;return h}
   if(p.stage==='제출')return `<span class="muted">${p.submitted?'제출 '+(-diff(p.submitted))+'일째 · ':''}결과 대기</span>`;
-  if(p.stage==='전형'){const n=nextEv(p);return `<span class="pill">${esc(p.steps[p.cur]||'전형')}</span>`+(n?`<span class="muted">${md(n.d)} ${esc(n.t)}</span>`:'')}
+  if(isProc(p)){const n=nextEv(p);return `<span class="pill">${esc(COLNAME[p.stage])}</span>`+(n?`<span class="muted">${md(n.d)} ${esc(n.t)}</span>`:'')}
   return resPill(p);
 }
 function resPill(p){const c={최종합격:'ok',불합격:'bad','포기/무응답':'mute',인재풀:'mute'}[p.result]||'mute';return `<span class="pill ${c}">${esc(p.result||'종료')}${p.failAt?' · '+esc(p.failAt):''}</span>`}
@@ -732,11 +751,11 @@ function boardBody(){
   const cols=COLS.map(([k,name,v])=>{const list=by(k);let body;
     if(k==='종료'){body=RESULTS.map(r=>{const g=list.filter(p=>(p.result||'불합격')===r);if(!g.length)return '';const op=S.endOpen[r]||!!S.bQ.trim();return `<button class="grp" data-act="end-toggle" data-v="${r}"><span>${op?'▾':'▸'} ${r}</span><span class="count">${g.length}</span></button>${op?sortList(g).map(cardH).join(''):''}`}).join('')||'<div class="empty">없어요</div>'}
     else body=list.length?sortList(list).map(cardH).join(''):'<div class="empty">비어 있어요</div>';
-    return `<div class="col ${S.boardCol===k?'active':''}" data-col="${k}"><div class="col-h"><span class="dot" style="--c:var(${v})"></span>${name}<span class="count">${list.length}</span></div>${body}</div>`}).join('');
-  return `<div class="coltabs">${tabs}</div><div class="board-wrap"><div class="board">${cols}</div></div>`;
+    return `<div class="col ${list.length?'':'empty-col'}" data-col="${k}"><div class="col-h"><span class="dot" style="--c:var(${v})"></span>${name}<span class="count">${list.length}</span></div>${body}</div>`}).join('');
+  return `<div class="board-wrap"><div class="board">${cols}</div></div>`;
 }
 function boardHTML(){
-  return `${roBanner()}<div class="view-head"><h2>${esc(nm(S.who))}의 공고 보드</h2>${ro()?'':'<span class="muted small">PC에선 카드를 끌어서 옮길 수 있어요</span>'}</div>
+  return `${roBanner()}<div class="view-head"><h2>${esc(nm(S.who))}의 공고 보드</h2>${ro()?'':'<span class="muted small pc-only">카드를 끌어서 다른 칸에 놓으면 단계가 바뀌어요</span>'}</div>
   <div class="toolbar" style="margin-bottom:12px"><input class="search" id="bQ" type="search" placeholder="회사·직무 검색" value="${esc(S.bQ)}" aria-label="회사·직무 검색">
    <select data-ch="fjob" aria-label="직무 필터"><option value="">직무 전체</option>${DB[S.who].jobs.map(i=>`<option ${S.fJob===i?'selected':''}>${esc(i)}</option>`).join('')}</select>
    <select data-ch="find" aria-label="업권 필터"><option value="">업권 전체</option>${INDS.map(i=>`<option ${S.fInd===i?'selected':''}>${esc(i)}</option>`).join('')}</select>
@@ -746,16 +765,16 @@ function boardHTML(){
 
 /* ================= S7 기록 ================= */
 function recRows(){const q=S.recQ.trim().toLowerCase();return vis(S.who).filter(p=>p.submitted||p.stage==='종료').filter(p=>!q||(p.co+p.role+p.ind+p.job).toLowerCase().includes(q)).sort((a,b)=>String(b.submitted).localeCompare(String(a.submitted)))
-  .map(p=>`<tr data-act="open" data-id="${p.id}"><td class="num">${p.submitted?p.submitted.slice(2).replace(/-/g,'.'):'-'}</td><td><b>${esc(shortCo(p.co))}</b> · ${esc(shortRole(p.role))}</td><td>${esc(p.job)}</td><td>${esc(p.ind)}</td><td>${p.stage==='종료'?resPill(p):p.stage==='제출'?'<span class="pill mute">⏳ 결과 대기</span>':'<span class="pill">'+esc(p.steps[p.cur]||'전형')+' 진행</span>'}</td></tr>`).join('')||'<tr><td colspan="5" class="muted">아직 없어요</td></tr>'}
+  .map(p=>`<tr data-act="open" data-id="${p.id}"><td class="num">${p.submitted?p.submitted.slice(2).replace(/-/g,'.'):'-'}</td><td><b>${esc(shortCo(p.co))}</b> · ${esc(shortRole(p.role))}</td><td>${esc(p.job)}</td><td>${esc(p.ind)}</td><td>${p.stage==='종료'?resPill(p):p.stage==='제출'?'<span class="pill mute">⏳ 결과 대기</span>':'<span class="pill">'+esc(COLNAME[p.stage]||'전형')+'</span>'}</td></tr>`).join('')||'<tr><td colspan="5" class="muted">아직 없어요</td></tr>'}
 function recHTML(){
   const ps=vis(S.who),sub=ps.filter(p=>p.submitted||(p.stage==='종료'&&p.result!=='포기/무응답'));
   const decided=sub.filter(p=>p.stage!=='제출');
-  const passed=sub.filter(p=>p.stage==='전형'||(p.stage==='종료'&&(p.result==='최종합격'||p.result==='인재풀'||(p.failAt&&p.failAt!=='서류'))));
+  const passed=sub.filter(p=>isProc(p)||(p.stage==='종료'&&(p.result==='최종합격'||p.result==='인재풀'||(p.failAt&&p.failAt!=='서류'))));
   const rate=decided.length?Math.round(passed.length/decided.length*100):0;
   const cnt=f=>{const o={};sub.forEach(p=>{const k=f(p);if(k)o[k]=(o[k]||0)+1});return o};
   const fail={};ps.filter(p=>p.stage==='종료'&&p.failAt).forEach(p=>fail[p.failAt]=(fail[p.failAt]||0)+1);
   const bars=o=>{const e=Object.entries(o).sort((a,b)=>b[1]-a[1]).slice(0,6);const mx=Math.max(1,...e.map(x=>x[1]));return e.length?`<div class="bars">${e.map(([k,v])=>`<div class="bar"><span class="oneline">${esc(k)}</span><span class="track"><span class="fill" style="width:${v/mx*100}%"></span></span><span class="num">${v}</span></div>`).join('')}</div>`:'<div class="muted small">아직 없어요</div>'};
-  const prog=COLS.slice(0,4).map(([k,name,v])=>`<button data-act="goto-col" data-v="${k}"><span><i class="dot" style="--c:var(${v})"></i>${name}</span><b>${ps.filter(p=>p.stage===k).length}</b></button>`).join('');
+  const prog=COLS.filter(c=>c[0]!=='종료').map(([k,name,v])=>`<button data-act="goto-col" data-v="${k}"><span><i class="dot" style="--c:var(${v})"></i>${name}</span><b>${ps.filter(p=>p.stage===k).length}</b></button>`).join('');
   return `${roBanner()}<div class="view-head"><h2>${esc(nm(S.who))}의 지원 기록</h2></div>
   <section class="sec"><h3>지금 진행 현황</h3><div class="prog">${prog}</div></section>
   <div class="stats"><div class="stat"><div class="k">지원한 공고</div><div class="v">${sub.length}<small>건</small></div><div class="k">결과 대기 ${ps.filter(p=>p.stage==='제출').length}건</div></div>
@@ -851,7 +870,7 @@ function resultDlg(id){const p=find(id);show(()=>dlgHead(esc(shortCo(p.co))+' ·
   <div class="field"><span class="lb">결과</span><div class="radio-row">${RESULTS.map((r,i)=>`<label><input type="radio" name="res" value="${r}" ${i===1?'checked':''}>${r}</label>`).join('')}</div></div>
   <div class="field"><label for="failAt">어느 단계에서 (불합격·포기/무응답일 때)</label><select id="failAt">${p.steps.map((s,i)=>`<option ${i===p.cur?'selected':''}>${esc(s)}</option>`).join('')}</select></div>
   <button class="btn primary block" data-act="res-ok" data-id="${id}">종료로 옮기기</button></div>`)}
-function stepDlg(p){show(()=>dlgHead(esc(shortCo(p.co))+' · 현재 전형 변경')+`<div class="dlg-b"><span class="muted small">지금 진행 중인 전형을 골라 주세요. 서류 다음 단계를 고르면 "전형 진행"으로 옮겨져요.</span>
+function stepDlg(p){show(()=>dlgHead(esc(shortCo(p.co))+' · 현재 전형 변경')+`<div class="dlg-b"><span class="muted small">지금 진행 중인 전형을 골라 주세요. 서류 다음 단계를 고르면 보드에서 그 단계 칸(인적성·1차·2차·3차 면접)으로 옮겨져요.</span>
   <div class="menu-list">${p.steps.map((s,i)=>`<label class="${i===p.cur?'cur':''}"><input type="radio" name="stp" value="${i}" ${i===p.cur?'checked':''}>${esc(s)}${i===p.cur?' (지금)':''}</label>`).join('')}</div>
   <button class="btn primary block" data-act="step-ok">이 전형으로 변경</button></div>`)}
 function commentDlg(p,qi,quote){show(()=>dlgHead('댓글 달기')+`<div class="dlg-b"><div class="cmt"><div class="q-quote">“${esc(quote)}”</div><span class="muted small">${qi+1}번 답변 · ${esc(label(p))}</span></div>
@@ -863,7 +882,7 @@ function setStage(p,st){
   const b=snap(p),old=p.stage;p.stage=st;p.result='';p.failAt='';
   if(st==='제출'&&!p.submitted)p.submitted=TODAY;
   if(st==='관심'||st==='작성중'){p.submitted='';p.cur=0}
-  if(st==='전형'&&p.cur<1)p.cur=1;
+  if(PROC.includes(st)){const i=stepIdxFor(p,st);if(i>0)p.cur=i;else if(p.cur<1)p.cur=1;if(!p.submitted)p.submitted=TODAY}
   const nt=p.tasks.length;ensureAuto(p);const added=p.tasks.length-nt;
   hist(p,`${COLNAME[old]} → ${COLNAME[st]}`);S.dlg=null;changed(p,b,`${shortCo(p.co)} → ${COLNAME[st]}${added?` · 자동 할 일 ${added}개`:''}`);
 }
@@ -1018,7 +1037,7 @@ document.addEventListener('click',e=>{
     case 'submit-done':if(p)setStage(p,'제출');break;
     case 'step-menu':if(p)stepDlg(p);break;
     case 'step-ok':if(p){const i=+((document.querySelector('input[name=stp]:checked')||{}).value||p.cur);const b=snap(p);p.cur=i;
-      if(i>0&&p.stage!=='전형'){const o=p.stage;p.stage='전형';if(!p.submitted)p.submitted=TODAY;hist(p,`${COLNAME[o]} → 전형 진행 (${p.steps[i]})`)}else hist(p,`현재 전형: ${p.steps[i]}`);
+      if(i>0){const o=p.stage,ns=stageOfStep(p.steps[i]);p.stage=ns;if(!p.submitted)p.submitted=TODAY;hist(p,o===ns?`현재 전형: ${p.steps[i]}`:`${COLNAME[o]} → ${COLNAME[ns]} (${p.steps[i]})`)}else hist(p,`현재 전형: ${p.steps[i]}`);
       S.dlg=null;changed(p,b,`${shortCo(p.co)} · 현재 전형: ${p.steps[i]}`)}break;
     case 'edit':if(p){S.form={mode:'edit',id:p.id,v:fromPost(p)};formDlg()}break;
     case 'edit-a':S.editQ={pid:p.id,qi:+t.dataset.i};renderLayer();break;
@@ -1034,7 +1053,7 @@ document.addEventListener('click',e=>{
     case 'resolve':if(p){const c=p.comments.find(x=>x.id===t.dataset.c);if(c){c.resolved=!c.resolved;dirtyC(p,c);render();toast(c.resolved?'해결로 표시했어요':'다시 열었어요')}}break;
     case 'show-res':S.showRes[v]=!S.showRes[v];renderLayer();break;
     case 'board-col':S.boardCol=v;render();break;
-    case 'goto-col':S.view='board';S.boardCol=v;render();break;
+    case 'goto-col':S.view='board';S.boardCol=v;render();{const el=document.querySelector('.col[data-col="'+v+'"]');if(el&&el.scrollIntoView)el.scrollIntoView({block:'start'})}break;
     case 'end-toggle':S.endOpen[v]=!S.endOpen[v];$('#boardBody').innerHTML=boardBody();break;
     case 'cal-prev':case 'cal-next':{const dir=a==='cal-next'?1:-1;if(S.calMode==='week'){S.calSel=addDays(S.calSel,7*dir);const d=dt(S.calSel);S.calY=d.getFullYear();S.calM=d.getMonth()}
       else{S.calM+=dir;if(S.calM<0){S.calM=11;S.calY--}if(S.calM>11){S.calM=0;S.calY++}}render();break}
