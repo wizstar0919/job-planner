@@ -198,13 +198,17 @@ function extract_(input) {
     content.push({ type: 'image', source: { type: 'base64', media_type: img.type || 'image/jpeg', data: img.data } });
   });
   const today = Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd');
-  const jobs = (input.jobs && input.jobs.length ? input.jobs : ['영업','자산운용','채권운용','자금','재무/회계','경영지원/기획','리스크/심사','사업개발']).join(', ');
+  const jobList = (input.jobs && input.jobs.length ? input.jobs : ['영업','자산운용','채권운용','자금','재무/회계','경영지원/기획','리스크/심사','사업개발']).map(String);
+  const jobs = jobList.join(', ');
+  const indList = (input.inds && input.inds.length ? input.inds : ['은행','증권','자산운용','저축은행','캐피탈/카드','보험','공기업','일반기업','기타']).map(String);
+  const salesHint = jobList.some(j => /제품영업|솔루션영업|기술영업|금융영업/.test(j)) ?
+    '  (영업 구분: 제품영업=하드웨어·소비재 등 완제품 판매 / 솔루션영업=소프트웨어·SaaS·클라우드·IT서비스·결제 등 B2B 서비스 / 기술영업=반도체·장비·부품 등 기술 이해가 필요한 엔지니어링 제품 / 금융영업=은행·증권·카드 등 금융회사의 영업·RM·여신)\n' : '';
   content.push({ type: 'text', text:
     '아래 채용 공고에서 정보를 뽑아 JSON으로 정리해 주세요. 오늘은 ' + today + ' (한국 시간)입니다.\n' +
     '규칙\n' +
     '- 공고에 없는 정보는 지어내지 말고 빈 문자열 "" (숫자는 0, 목록은 [])\n' +
-    '- job: 다음 중 가장 가까운 것 하나 (맞는 게 없으면 ""): ' + jobs + '\n' +
-    '- role: 공고에 적힌 직무명 그대로 · type: 체험형(인턴 후 정규직 전환 없음)/전환형(채용연계·채용전제·정규직 전환 가능 인턴)/정규직/계약직 중 하나. 인턴인데 전환 여부가 공고에 없으면 "" · ind: 은행/증권/자산운용/저축은행/캐피탈/카드/보험/공기업/일반기업/기타 중 하나\n' +
+    '- job: 다음 중 가장 가까운 것 하나 (맞는 게 없으면 ""): ' + jobs + '\n' + salesHint +
+    '- role: 공고에 적힌 직무명 그대로 · type: 체험형(인턴 후 정규직 전환 없음)/전환형(채용연계·채용전제·정규직 전환 가능 인턴)/정규직/계약직 중 하나. 인턴인데 전환 여부가 공고에 없으면 "" · ind(업권): ' + indList.join(' / ') + ' 중 하나 (회사가 하는 사업 기준. 핀테크=결제·대출·투자 등 금융 서비스를 하는 IT 회사)\n' +
     '- 마감: 날짜와 시각이 있으면 dueKind "확정", due "YYYY-MM-DDTHH:MM" (시각이 없으면 23:59). "채용 시 마감"이면 dueKind "채용시". 알 수 없으면 "미확인". 연도가 없으면 오늘 이후 가장 가까운 날짜로\n' +
     '- applyStart: 접수 시작일 "YYYY-MM-DD" (없으면 "")\n' +
     '- steps: 전형 순서 (예: ["서류","인적성","1차 면접","최종 면접"])\n' +
@@ -222,7 +226,7 @@ function extract_(input) {
     properties: {
       co: { type: 'string' }, short: { type: 'string' }, job: { type: 'string' }, role: { type: 'string' },
       type: { type: 'string', enum: ['', '체험형', '전환형', '정규직', '계약직'] },
-      ind: { type: 'string', enum: ['', '은행', '증권', '자산운용', '저축은행', '캐피탈/카드', '보험', '공기업', '일반기업', '기타'] },
+      ind: { type: 'string', enum: [''].concat(indList) },
       loc: { type: 'string' }, applyStart: { type: 'string' },
       dueKind: { type: 'string', enum: ['확정', '채용시', '미확인'] }, due: { type: 'string' },
       steps: { type: 'array', items: { type: 'string' } },

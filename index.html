@@ -597,6 +597,8 @@ const RESULTS=['최종합격','불합격','포기/무응답','인재풀'];
 const DUEKIND=[['확정','확정 (일시 있음)'],['채용시','채용 시 마감'],['미확인','미확인']];
 const TYPES=['체험형','전환형','정규직','계약직'];
 const HOT_DAYS=3; /* 마감 임박 기준 (홈·달력 공통) */
+/* 업권 선택지: 사람마다 따로 (설정 'inds'). 지금 공고에 쓰인 값이 목록에 없으면 같이 보여 줌 */
+const indsOf=(w,cur)=>{const l=[...((DB[w]&&DB[w].inds)||INDS)];(Array.isArray(cur)?cur:[cur]).forEach(c=>{if(c&&!l.includes(c))l.push(c)});return l};
 const INDS=['은행','증권','자산운용','저축은행','캐피탈/카드','보험','공기업','일반기업','기타'];
 const BASEJOBS=['영업','자산운용','채권운용','자금','재무/회계','경영지원/기획','리스크/심사','사업개발'];
 const QST=['미작성','초안','제출본'];
@@ -623,7 +625,7 @@ const cfg=Object.assign({server:'',pw:'',remember:false,me:''},LS.get('cfg',{}))
 const saveCfg=()=>LS.set('cfg',cfg);
 
 /* ================= 데이터 ================= */
-const emptyPerson=w=>({name:NAMES[w],jobs:[...BASEJOBS],auto:{...DEFAULT_AUTO},tasks:[],posts:[]});
+const emptyPerson=w=>({name:NAMES[w],jobs:[...BASEJOBS],inds:[...INDS],auto:{...DEFAULT_AUTO},tasks:[],posts:[]});
 const DB={me:emptyPerson('me'),gh:emptyPerson('gh')};
 let loaded=false,usage={used:0,limit:30,hasKey:false},sheets={};
 const Y=b=>b?'Y':'';
@@ -641,7 +643,7 @@ function build(w,t){
     p.comments.push({id:r.id,qi:r.qi===''?-1:+r.qi,quote:r.quote||'',text:r.text||'',by:r.by||'',at:r.at||'',replies:rep,resolved:r.resolved==='Y',read:r.read==='Y'})});
   posts.forEach(p=>{if(p.stage==='전형'||!COLNAME[p.stage])p.stage=p.stage==='전형'?stageOfStep(p.steps[p.cur]):'관심'});
   posts.forEach(p=>{p.hist.sort((a,b)=>String(a.d).localeCompare(String(b.d)));if(!p.hist.length)p.hist=[{id:uid(),d:p.created||TODAY,t:'등록'}]});
-  (t.settings||[]).forEach(r=>{try{if(r.k==='jobs')P0.jobs=JSON.parse(r.v);if(r.k==='auto')P0.auto=Object.assign({...DEFAULT_AUTO},JSON.parse(r.v))}catch(e){}});
+  (t.settings||[]).forEach(r=>{try{if(r.k==='jobs')P0.jobs=JSON.parse(r.v);if(r.k==='inds')P0.inds=JSON.parse(r.v);if(r.k==='auto')P0.auto=Object.assign({...DEFAULT_AUTO},JSON.parse(r.v))}catch(e){}});
   P0.posts=posts;return P0;
 }
 function setData(data){['me','gh'].forEach(w=>{Object.assign(DB[w],build(w,data[w]))});loaded=true}
@@ -683,11 +685,11 @@ function showSync(){const el=document.getElementById('sync');if(!el)return;
 const dirty=p=>{if(!p)return;const w=owner(p);enqueue('p:'+p.id,w,()=>bundleOps(p))};
 const dirtyC=(p,c)=>{const w=owner(p);enqueue('c:'+c.id,w,()=>[{op:'upsert',table:'comments',rows:[cRow(p,c)]}])};
 const dirtyG=w=>{enqueue('g:'+w,w,()=>{DB[w].tasks.forEach(t=>{if(!t.id)t.id=uid()});return [{op:'replace',table:'tasks',key:'pid',value:'',rows:DB[w].tasks.map(t=>({id:t.id,pid:'',t:t.t,due:t.due,done:Y(t.done),doneAt:t.doneAt||'',auto:Y(t.auto)}))}]})};
-const dirtyS=w=>{enqueue('s:'+w,w,()=>[{op:'upsert',table:'settings',rows:[{k:'jobs',v:JSON.stringify(DB[w].jobs)},{k:'auto',v:JSON.stringify(DB[w].auto)}]}])};
+const dirtyS=w=>{enqueue('s:'+w,w,()=>[{op:'upsert',table:'settings',rows:[{k:'jobs',v:JSON.stringify(DB[w].jobs)},{k:'inds',v:JSON.stringify(DB[w].inds)},{k:'auto',v:JSON.stringify(DB[w].auto)}]}])};
 function delRemote(p,w){const id=p.id;queue.delete('p:'+id);enqueue('d:'+id,w,()=>[{op:'remove',table:'posts',key:'id',value:id},...['qs','events','tasks','hist','comments'].map(t=>({op:'remove',table:t,key:'pid',value:id}))])}
 let raw={me:null,gh:null};
 function cacheData(){/* 서버 형식으로 다시 만들어 기기에 보관 */
-  ['me','gh'].forEach(w=>{const P=DB[w];const t={posts:[],qs:[],events:[],tasks:[],hist:[],comments:[],settings:[{k:'jobs',v:JSON.stringify(P.jobs)},{k:'auto',v:JSON.stringify(P.auto)}]};
+  ['me','gh'].forEach(w=>{const P=DB[w];const t={posts:[],qs:[],events:[],tasks:[],hist:[],comments:[],settings:[{k:'jobs',v:JSON.stringify(P.jobs)},{k:'inds',v:JSON.stringify(P.inds)},{k:'auto',v:JSON.stringify(P.auto)}]};
     P.posts.forEach(p=>{bundleOps(p).forEach(o=>{if(o.op==='upsert')t.posts.push(...o.rows);else t[o.table].push(...o.rows)});p.comments.forEach(c=>t.comments.push(cRow(p,c)))});
     P.tasks.forEach(x=>t.tasks.push({id:x.id||uid(),pid:'',t:x.t,due:x.due,done:Y(x.done),doneAt:x.doneAt||'',auto:Y(x.auto)}));raw[w]=t});
   LS.set('cache',{at:Date.now(),data:raw});
@@ -896,7 +898,7 @@ function boardHTML(){
   return `${roBanner()}<div class="view-head"><h2>${esc(nm(S.who))}의 공고 보드</h2>${ro()?'':'<span class="muted small pc-only">카드를 끌어서 다른 칸에 놓으면 단계가 바뀌어요</span>'}</div>
   <div class="toolbar" style="margin-bottom:12px"><input class="search" id="bQ" type="search" placeholder="회사·직무 검색" value="${esc(S.bQ)}" aria-label="회사·직무 검색">
    <select data-ch="fjob" aria-label="직무 필터"><option value="">직무 전체</option>${DB[S.who].jobs.map(i=>`<option ${S.fJob===i?'selected':''}>${esc(i)}</option>`).join('')}</select>
-   <select data-ch="find" aria-label="업권 필터"><option value="">업권 전체</option>${INDS.map(i=>`<option ${S.fInd===i?'selected':''}>${esc(i)}</option>`).join('')}</select>
+   <select data-ch="find" aria-label="업권 필터"><option value="">업권 전체</option>${indsOf(S.who,S.fInd).map(i=>`<option ${S.fInd===i?'selected':''}>${esc(i)}</option>`).join('')}</select>
    <select data-ch="bsort" aria-label="정렬"><option value="due" ${S.bSort==='due'?'selected':''}>마감순</option><option value="upd" ${S.bSort==='upd'?'selected':''}>최근 수정순</option></select></div>
   <div id="boardBody">${boardBody()}</div>`;
 }
@@ -952,7 +954,7 @@ function listHTML(){const f=S.lf,r=listRows();
   <div class="toolbar ltools"><input class="search" id="lQ" type="search" placeholder="회사·직무·업권 검색" value="${esc(S.lq)}" aria-label="검색">
    ${sel('lstage',f.stage,[['진행','진행 중 (종료 빼고)'],...COLS.map(c=>[c[0],c[1]])],'단계 전체')}
    ${sel('ltype',f.type,TYPES,'유형 전체')}
-   ${sel('lind',f.ind.length===1?f.ind[0]:'',INDS,'업권 전체')}
+   ${sel('lind',f.ind.length===1?f.ind[0]:'',indsOf(S.who,vis(S.who).map(p=>p.ind)),'업권 전체')}
    ${sel('ljob',f.job.length===1?f.job[0]:'',jobs,'직무 전체')}
    ${sel('lres',f.res,RESULTS,'결과 전체')}
    ${any?'<button class="link-btn small" data-act="l-clear-all">조건 모두 지우기</button>':''}</div>
@@ -1056,7 +1058,7 @@ function edInfo(v){
    <div class="f2"><div class="field"><label for="fJob">지원 직무</label><select id="fJob" data-f="job"><option value=""></option>${jobs.map(j=>`<option ${v.job===j?'selected':''}>${esc(j)}</option>`).join('')}${v.job&&v.job!=='__new'&&!jobs.includes(v.job)?`<option selected>${esc(v.job)}</option>`:''}<option value="__new" ${v.job==='__new'?'selected':''}>+ 직접 추가</option></select>${v.job==='__new'?'<input id="fJobNew" placeholder="새 직무 이름" style="margin-top:4px">':''}</div>
     <div class="field"><label for="fRole">상세 직무명</label><input id="fRole" data-f="role" value="${esc(v.role)}"></div></div>
    <div class="f2"><div class="field"><label for="fType">유형</label><select id="fType" data-f="type"><option value=""></option>${TYPES.map(o=>`<option ${v.type===o?'selected':''}>${o}</option>`).join('')}</select></div>
-    <div class="field"><label for="fInd">업권</label><select id="fInd" data-f="ind"><option value=""></option>${INDS.map(o=>`<option ${v.ind===o?'selected':''}>${o}</option>`).join('')}</select></div></div>
+    <div class="field"><label for="fInd">업권</label><select id="fInd" data-f="ind"><option value=""></option>${indsOf(S.me,v.ind).map(o=>`<option ${v.ind===o?'selected':''}>${esc(o)}</option>`).join('')}</select></div></div>
    <div class="f2"><div class="field"><label for="fLoc">근무지</label><input id="fLoc" data-f="loc" value="${esc(v.loc)}"></div><div class="field"><label for="fAs">접수 시작 (선택)</label><input id="fAs" type="date" data-f="applyStart" value="${esc(v.applyStart)}"></div></div>
    <div class="f2"><div class="field"><label for="fDk">마감 종류</label><select id="fDk" data-f="dueKind">${DUEKIND.map(d=>`<option value="${d[0]}" ${v.dueKind===d[0]?'selected':''}>${d[1]}</option>`).join('')}</select></div>
     ${v.dueKind==='확정'?`<div class="field ${S.ed.focus?'focus':''}"><label for="fDue">마감 일시</label><input id="fDue" type="datetime-local" data-f="due" value="${esc(v.due)}"></div>`:v.dueKind==='미확인'?`<div class="field ${S.ed.focus?'focus':''}"><label for="fRecheck">재확인 날짜</label><input id="fRecheck" type="date" data-f="recheck" value="${esc(v.recheck)}"></div>`:'<div></div>'}</div>
@@ -1221,7 +1223,7 @@ function formDlg(){
    <div class="field"><label for="fShort">달력 표시 이름 (선택 · 휴대폰 달력에 쓰는 줄임말)</label><input id="fShort" data-f="short" value="${esc(v.short||'')}" placeholder="비우면 회사명 앞 4글자 (예: SKNS, 한투)"></div>
    <div class="field ${miss('role')}"><label for="fRole">상세 직무명</label><input id="fRole" data-f="role" value="${esc(v.role)}" placeholder="공고에 적힌 직무명"></div>
    <div class="f2"><div class="field ${miss('type')}"><label for="fType">유형</label><select id="fType" data-f="type"><option value=""></option>${TYPES.map(o=>`<option ${v.type===o?'selected':''}>${o}</option>`).join('')}</select></div>
-    <div class="field ${miss('ind')}"><label for="fInd">업권</label><select id="fInd" data-f="ind"><option value=""></option>${INDS.map(o=>`<option ${v.ind===o?'selected':''}>${o}</option>`).join('')}</select></div></div>
+    <div class="field ${miss('ind')}"><label for="fInd">업권</label><select id="fInd" data-f="ind"><option value=""></option>${indsOf(S.me,v.ind).map(o=>`<option ${v.ind===o?'selected':''}>${esc(o)}</option>`).join('')}</select></div></div>
    <div class="f2"><div class="field ${miss('loc')}"><label for="fLoc">근무지</label><input id="fLoc" data-f="loc" value="${esc(v.loc)}"></div><div class="field"><label for="fAs">접수 시작 (선택)</label><input id="fAs" type="date" data-f="applyStart" value="${esc(v.applyStart)}"></div></div>
    <div class="field"><label for="fDk">마감 종류</label><select id="fDk" data-f="dueKind">${DUEKIND.map(d=>`<option value="${d[0]}" ${v.dueKind===d[0]?'selected':''}>${d[1]}</option>`).join('')}</select></div>
    ${v.dueKind==='확정'?`<div class="field ${miss('due')} ${F.focus?'focus':''}"><label for="fDue">마감 일시</label><input id="fDue" type="datetime-local" data-f="due" value="${esc(v.due)}">${rev?'<span class="note" style="margin-top:4px">마감 일시는 원문과 꼭 비교해 주세요. 시간(23:59, 18:00 등)을 잘못 읽는 경우가 있어요.</span>':''}</div>`:''}
@@ -1269,7 +1271,7 @@ async function runExtract(){
   readAddInputs();const A=S.add;
   const has=(A.tab==='link'&&A.link.trim())||(A.tab==='cap'&&A.imgs.length)||(A.tab==='text'&&A.text.trim());
   if(!has){A.warn='링크, 캡처, 본문 중 하나를 넣어 주세요.';addDlg();return}
-  const input={jobs:DB[S.me].jobs};
+  const input={jobs:DB[S.me].jobs,inds:DB[S.me].inds};
   if(A.link.trim())input.url=A.link.trim();
   if(A.text.trim())input.text=A.text.trim();
   if(A.imgs.length)input.images=A.imgs.map(s=>({type:'image/jpeg',data:s.split(',')[1]}));
