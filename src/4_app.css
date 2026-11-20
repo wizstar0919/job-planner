@@ -167,3 +167,24 @@ mark[data-cs]{cursor:pointer}
 .cal .ev,.cal .ev.k-due{font-weight:400}
 .cal .ev .jb,.cal .ev .tx b{font-weight:400}
 .cal .ev .ty{font-weight:700;opacity:1}
+
+/* 기록: 전체 공고 표 */
+.ltools{flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.ltools .search{max-width:240px}
+.ltable td{vertical-align:top}
+.ltable td .sub{font-size:12px;color:var(--muted);max-width:340px}
+.ltable tbody tr{cursor:pointer}
+.ltable tbody tr:hover{background:var(--surface-2)}
+.th-sort{border:0;background:transparent;color:inherit;font:inherit;padding:0;cursor:pointer}
+.th-sort.on{color:var(--fg);font-weight:600}
+.stg{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;white-space:nowrap}
+@container app (max-width:760px){.ltable .hide-n{display:none}.ltools .search{max-width:none;flex:1 1 100%}}
+/* 분석 → 기록 이어 주기 */
+.stat.link{cursor:pointer}
+.stat.link:hover{border-color:var(--accent)}
+.stat .go{float:right;color:var(--accent);font-size:12px}
+
+/* 휴대폰: 메뉴 접힘 상태여도 + 버튼은 아래 메뉴 위에 */
+@container app (max-width:760px){.app.side-off .fab{right:calc(16px + env(safe-area-inset-right,0px));bottom:calc(78px + env(safe-area-inset-bottom,0px));width:54px;height:54px}}
+@container app (max-width:760px){table.ltable{min-width:0}.ltable td,.ltable th{padding-left:8px;padding-right:8px}}
+@container app (max-width:760px){.ltable td .sub{white-space:normal;max-width:none}.ltable td.num{white-space:nowrap}}
