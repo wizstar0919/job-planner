@@ -559,8 +559,6 @@ mark[data-cs]{cursor:pointer}
 .fstep .fp{text-align:right;font-size:12px}
 .months{display:flex;align-items:stretch;gap:3px;height:160px;margin-top:10px}
 .mcol{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;gap:3px;border-radius:6px;padding:2px 0}
-.mcol.pick{cursor:pointer}
-.mcol.pick:hover{background:var(--surface-2)}
 .mcol .mv{font-size:11px;font-family:var(--f-num);color:var(--muted);height:14px}
 .mcol .mbox{flex:1 1 0;width:100%;position:relative;min-height:0}
 .mcol .mbar{position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:min(24px,70%);background:var(--accent-soft);border-radius:4px 4px 0 0;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end}
@@ -570,8 +568,6 @@ mark[data-cs]{cursor:pointer}
 .legend .lg{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
 .lg.a{background:var(--accent-soft);border:1px solid var(--accent)}
 .lg.b{background:var(--accent)}
-.rtable tbody tr{cursor:pointer}
-.rtable tbody tr:hover{background:var(--surface-2)}
 .rate{display:flex;align-items:center;gap:8px}
 .rate .track{display:block;flex:1;max-width:180px;height:8px;background:var(--surface-2);border-radius:4px;overflow:hidden}
 .rate .fill{display:block;height:100%;background:var(--accent);border-radius:0 4px 4px 0}
@@ -1070,7 +1066,7 @@ function recHTML(){
   if(mk.length){let[y,m]=mk[0].split('-').map(Number);const[ey,em]=mk[mk.length-1].split('-').map(Number);
     while(y<ey||(y===ey&&m<=em)){const k=y+'-'+String(m).padStart(2,'0');months.push([k,mon[k]||{n:0,ok:0}]);if(++m>12){m=1;y++}}}
   const mmax=Math.max(1,...months.map(x=>x[1].n));
-  const monH=months.length?`<div class="months">${months.map(([k,o],i)=>`<div class="mcol ${o.n?'pick':''}" ${o.n?`role="button" tabindex="0" data-act="to-list" data-v="month" data-k="${k}"`:''} title="${k.slice(2).replace('-','.')} · 지원 ${o.n}건 · 서류 통과 ${o.ok}건"><span class="mv">${o.n||''}</span><span class="mbox"><span class="mbar" style="height:${o.n/mmax*100}%"><span class="mok" style="height:${o.n?o.ok/o.n*100:0}%"></span></span></span><span class="ml">${i===0||k.slice(5)==='01'?k.slice(2,4)+'.':''}${+k.slice(5)}월</span></div>`).join('')}</div>
+  const monH=months.length?`<div class="months">${months.map(([k,o],i)=>`<div class="mcol" title="${k.slice(2).replace('-','.')} · 지원 ${o.n}건 · 서류 통과 ${o.ok}건"><span class="mv">${o.n||''}</span><span class="mbox"><span class="mbar" style="height:${o.n/mmax*100}%"><span class="mok" style="height:${o.n?o.ok/o.n*100:0}%"></span></span></span><span class="ml">${i===0||k.slice(5)==='01'?k.slice(2,4)+'.':''}${+k.slice(5)}월</span></div>`).join('')}</div>
    <div class="legend small"><span><i class="lg a"></i>지원</span><span><i class="lg b"></i>그중 서류 통과</span></div>`:'<div class="muted small">아직 없어요</div>';
   /* ③ 분류별 서류 통과율 */
   const RT=S.rateTab,keyF=RT==='job'?jobKey:RT==='ind'?indKey:(p=>p.type||'(미분류)');
@@ -1078,7 +1074,7 @@ function recHTML(){
   const rrows=Object.entries(grp).sort((a,b)=>b[1].n-a[1].n||a[0].localeCompare(b[0],'ko'));
   const rateH=`<div class="seg sm" style="margin:8px 0 10px">${[['job','직무'],['ind','업권'],['type','유형']].map(([k,n])=>`<button class="${RT===k?'on':''}" data-act="rate-tab" data-v="${k}">${n}</button>`).join('')}</div>
    <div class="tbl-wrap"><table class="rtable"><thead><tr><th>${RT==='job'?'직무':RT==='ind'?'업권':'유형'}</th><th class="num">지원</th><th class="num hide-n">결과 나옴</th><th class="num">서류 통과</th><th>통과율</th></tr></thead><tbody>${rrows.map(([k,g])=>{const r=g.d?Math.round(g.ok/g.d*100):null,few=g.d<3;
-     return `<tr data-act="to-list" data-v="cat" data-k="${RT}|${esc(k)}" title="${esc(k)} 공고 목록 보기"><td>${esc(k)}</td><td class="num">${g.n}</td><td class="num hide-n">${g.d}</td><td class="num">${g.ok}</td><td><div class="rate ${few?'few':''}"><span class="track"><span class="fill" style="width:${r||0}%"></span></span><span class="num">${r===null?'-':r+'%'}</span>${few?'<span class="muted small">표본 적음</span>':''}</div></td></tr>`}).join('')||'<tr><td colspan="5" class="muted">아직 없어요</td></tr>'}</tbody></table></div>`;
+     return `<tr><td>${esc(k)}</td><td class="num">${g.n}</td><td class="num hide-n">${g.d}</td><td class="num">${g.ok}</td><td><div class="rate ${few?'few':''}"><span class="track"><span class="fill" style="width:${r||0}%"></span></span><span class="num">${r===null?'-':r+'%'}</span>${few?'<span class="muted small">표본 적음</span>':''}</div></td></tr>`}).join('')||'<tr><td colspan="5" class="muted">아직 없어요</td></tr>'}</tbody></table></div>`;
   return `${roBanner()}<div class="view-head"><h2>${esc(nm(S.who))}의 지원 분석</h2></div>
   <section class="sec"><h3>지금 진행 현황</h3><div class="prog">${prog}</div></section>
   ${period}
@@ -1086,8 +1082,8 @@ function recHTML(){
    <div class="stat link" role="button" tabindex="0" data-act="to-list" data-v="sub" title="이 공고들 보기"><div class="k">서류 통과율 <span class="go">목록 ›</span></div><div class="v">${rate}<small>% (${passed.length}/${decided.length})</small></div><div class="k">서류 결과가 나온 공고 기준</div></div>
    <div class="stat"><div class="k">떨어지거나 그만둔 단계</div>${bars(fail,'fail')}</div></div>
   <div class="stats two"><div class="stat"><div class="k">직무별 지원 <span class="muted">· 눌러서 고르기</span></div>${jobBars}</div><div class="stat"><div class="k">업권별 지원 <span class="muted">· 눌러서 고르기</span></div>${indBars}</div></div>
-  <div class="stats two"><div class="stat"><div class="k">단계별 깔때기</div>${funH}</div><div class="stat"><div class="k">월별 지원 추이 <span class="muted">· 막대 누르면 그달 목록</span></div>${monH}</div></div>
-  <div class="stat" style="margin-bottom:14px"><div class="k">분류별 서류 통과율 <span class="muted">· 결과 3건 미만은 흐리게 · 줄 누르면 목록</span></div>${rateH}</div>
+  <div class="stats two"><div class="stat"><div class="k">단계별 깔때기</div>${funH}</div><div class="stat"><div class="k">월별 지원 추이</div>${monH}</div></div>
+  <div class="stat" style="margin-bottom:14px"><div class="k">분류별 서류 통과율 <span class="muted">· 결과 3건 미만은 흐리게</span></div>${rateH}</div>
   ${cbar(sub.length)}`;
 }
 
