@@ -1018,7 +1018,8 @@ const STORD=Object.fromEntries(COLS.map((c,i)=>[c[0],i]));
 function listPass(p){const f=S.lf,q=S.lq.trim().toLowerCase();
   if(q&&!(p.co+' '+p.role+' '+p.ind+' '+p.job+' '+p.type).toLowerCase().includes(q))return false;
   if(f.stage==='진행'&&p.stage==='종료')return false;
-  if(f.stage&&f.stage!=='진행'&&p.stage!==f.stage)return false;
+  if(f.stage==='제출전'&&!isOpen(p))return false;
+  if(f.stage&&f.stage!=='진행'&&f.stage!=='제출전'&&p.stage!==f.stage)return false;
   if(f.type&&(p.type||'(미분류)')!==f.type)return false;
   if(f.res&&!(p.stage==='종료'&&p.result===f.res))return false;
   if(f.fail&&p.failAt!==f.fail)return false;
@@ -1050,7 +1051,7 @@ function listHTML(){const f=S.lf,r=listRows();
   const th=(k,n,cls)=>`<th class="${cls||''}"><button class="th-sort ${S.lSort===k?'on':''}" data-act="l-sort" data-v="${k}">${n}${S.lSort===k?(S.lDir<0?' ↓':' ↑'):''}</button></th>`;
   return `${roBanner()}<div class="view-head"><h2>${esc(nm(S.who))}의 지원 기록</h2><span class="muted small" id="listCnt">${r.n}건</span></div>
   <div class="toolbar ltools"><input class="search" id="lQ" type="search" placeholder="회사·직무·업권 검색" value="${esc(S.lq)}" aria-label="검색">
-   ${sel('lstage',f.stage,[['진행','진행 중 (종료 빼고)'],...COLS.map(c=>[c[0],c[1]])],'단계 전체')}
+   ${sel('lstage',f.stage,[['제출전','제출 전 (시작 전·작성 중)'],['진행','진행 중 (종료 빼고)'],...COLS.map(c=>[c[0],c[1]])],'단계 전체')}
    ${sel('ltype',f.type,TYPES,'유형 전체')}
    ${sel('lind',f.ind.length===1?f.ind[0]:'',indsOf(S.who,vis(S.who).map(p=>p.ind)),'업권 전체')}
    ${sel('ljob',f.job.length===1?f.job[0]:'',jobs,'직무 전체')}
@@ -1629,7 +1630,7 @@ document.addEventListener('change',e=>{
   if(c==='bsort'){S.bSort=el.value;$('#boardBody').innerHTML=boardBody()}
   if(c==='overlay'){S.overlay=el.checked;render()}
   if(c==='recFrom'||c==='recTo'){S[c]=el.value;S.recPreset='custom';render()}
-  if(c==='lstage'){S.lf.stage=el.value;render()}
+  if(c==='lstage'){S.lf.stage=el.value;if(el.value==='제출전'){S.lSort='due';S.lDir=1}render()}
   if(c==='ltype'){S.lf.type=el.value;render()}
   if(c==='lres'){S.lf.res=el.value;render()}
   if(c==='lind'){S.lf.ind=el.value?[el.value]:[];render()}
