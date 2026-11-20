@@ -308,7 +308,7 @@ function homeHTML(){
   const overH=over.map(p=>{const n=diff(p.due);return `<div class="row click overdue" role="button" tabindex="0" data-act="open" data-id="${p.id}"><span class="dd urgent">${ddL(n)}</span><span class="grow"><div class="t oneline">${esc(label(p))}</div><div class="s"><span class="late">마감 지남 · 미제출</span> · ${md(p.due)} ${p.due.slice(11,16)}</div>${ro()?'':`<div class="acts"><button class="btn sm" data-act="od-sub" data-id="${p.id}">제출했음</button><button class="btn sm" data-act="od-ext" data-id="${p.id}">마감 연장</button><button class="btn sm" data-act="od-drop" data-id="${p.id}">포기</button></div>`}</span></div>`}).join('');
   const urgH=urg.map(p=>{const n=diff(p.due);return rowOpen(p.id,'',`<span class="dd ${ddC(n)}">${ddL(n)}</span><span class="grow"><div class="t oneline" title="${esc(full(p))}">${esc(label(p))}</div><div class="s">${COLNAME[p.stage]}${p.qs.length?` · 문항 ${p.qs.filter(q=>q.st==='제출본').length}/${p.qs.length}`:''} · ${md(p.due)} ${p.due.slice(11,16)}</div></span><span class="chev">›</span>`)}).join('');
   const unkH=unk.map(p=>rowOpen(p.id,'',`<span class="dd unk">미확인</span><span class="grow"><div class="t oneline">${esc(label(p))}</div><div class="s">${esc(dueText(p))}</div></span><span class="chev">›</span>`)).join('');
-  const dueCnt=over.length+urg.length+unk.length;
+  const dueCnt=over.length+urg.length;
   const upH=up.length?up.map(({p,e})=>rowOpen(p.id,'',`<span class="kind">${(KIND[e.k]||KIND.etc)[0]}</span><span class="grow"><div class="t">${esc(e.t)}</div><div class="s oneline">${md(e.d)} · ${esc(label(p))}</div></span><span class="chev">›</span>`)).join(''):`<div class="empty">앞으로 7일 동안 잡힌 전형 일정이 없어요</div>`;
   const waitH=wait.length?wait.map(p=>rowOpen(p.id,'',`<span class="grow"><div class="t oneline">${esc(label(p))}</div><div class="s">${p.submitted?md(p.submitted)+' 제출 · '+(-diff(p.submitted))+'일째':'결과 대기'}</div></span><span class="chev">›</span>`)).join(''):`<div class="empty">결과를 기다리는 공고가 없어요</div>`;
   let partH='';
@@ -321,7 +321,7 @@ function homeHTML(){
   <div class="home"><div class="stack">
    <section class="sec"><h3>오늘 할 일 <span class="count">${left}</span></h3><div class="list">${tkH}</div></section>
    ${nc.length?`<section class="sec"><h3>새 댓글 <span class="count">${nc.length}</span></h3><div class="list">${ncH}</div></section>`:''}
-   <section class="sec"><h3>임박 마감 <span class="count">${dueCnt}</span></h3><div class="list">${dueCnt?overH+urgH+unkH:'<div class="empty">7일 안에 마감되는 공고가 없어요</div>'}</div></section>
+   <section class="sec"><h3>마감 임박 <span class="count">${dueCnt}</span></h3><div class="list">${dueCnt?overH+urgH:'<div class="empty">7일 안에 마감되는 공고가 없어요</div>'}</div></section>
    <section class="sec"><h3>앞으로 7일 전형 일정 <span class="count">${up.length}</span></h3><div class="list">${upH}</div></section>
   </div><div class="stack">
    <section class="sec"><h3>결과 대기 <span class="count">${wait.length}</span></h3><div class="list">${waitH}</div></section>
