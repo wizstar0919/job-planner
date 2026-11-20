@@ -516,6 +516,10 @@ mark[data-cs]{cursor:pointer}
 .bar.on .fill{background:var(--accent)}
 .fchips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:12px}
 .fchip{border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:3px 10px;font-size:12.5px;font-weight:600}
+
+/* 달력: 공고 막대를 누르면 바로 상세, 빈 곳은 날짜 선택 */
+.cal .ev.go{cursor:pointer}
+.cal .ev.go:hover{filter:brightness(1.25);outline:1px solid var(--col);outline-offset:-1px}
 </style>
 </head>
 <body>
@@ -800,7 +804,7 @@ function calHTML(){
       body=`<div class="weeklist">${cells.map(k=>{const ev=evm[k]||[];return `<div class="wrow ${k===TODAY?'today':''}"><div class="wday"><b>${WD[dt(k).getDay()]}</b><span class="num">${md(k).replace(/\(.\)/,'')}</span></div><div class="list">${ev.length?ev.map(evRow).join(''):'<span class="muted small">—</span>'}</div></div>`}).join('')}</div>${legend}`;
     }else{
       body=`<div class="grid7" style="grid-template-rows:auto repeat(${cells.length/7},minmax(0,1fr))">${WD.map((w,i)=>`<div class="wd ${i===0?'sun':i===6?'sat':''}">${w}</div>`).join('')}${cells.map(k=>{const ev=evm[k]||[];const oth=mode==='month'&&dt(k).getMonth()!==S.calM;
-        return `<button class="cell ${oth?'other':''} ${k===TODAY?'today':''} ${k===S.calSel?'sel':''} ${mode==='week'?'week':''}" data-act="cal-day" data-v="${k}"><span class="n">${dt(k).getDate()}</span>${ev.map(x=>`<span class="ev k-${x.e.k} st-${STK[x.p.stage]||'start'} ${x.w!==S.who?'p':''}" title="${esc(COLNAME[x.p.stage]+' · '+(KIND[x.e.k]||KIND.etc)[1]+' · '+full(x.p))}">${nar&&mode==='month'?`<span class="tx">${esc(shortName(x.p))}</span>`:`<span class="tx">${x.p.type?`<span class="ty">[${esc(x.p.type)}]</span>`:''}<b>${esc(shortCo(x.p.co))}</b><span class="jb"> ${esc(x.p.job||shortRole(x.p.role))}</span></span>`}</span>`).join('')}</button>`}).join('')}</div>${legend}`;
+        return `<button class="cell ${oth?'other':''} ${k===TODAY?'today':''} ${k===S.calSel?'sel':''} ${mode==='week'?'week':''}" data-act="cal-day" data-v="${k}"><span class="n">${dt(k).getDate()}</span>${ev.map(x=>`<span class="ev k-${x.e.k} st-${STK[x.p.stage]||'start'} ${x.w!==S.who?'p':''} ${nar&&mode==='month'?'':'go'}" ${nar&&mode==='month'?'':`data-act="open" data-id="${x.p.id}"`} title="${esc(COLNAME[x.p.stage]+' · '+(KIND[x.e.k]||KIND.etc)[1]+' · '+full(x.p))}">${nar&&mode==='month'?`<span class="tx">${esc(shortName(x.p))}</span>`:`<span class="tx">${x.p.type?`<span class="ty">[${esc(x.p.type)}]</span>`:''}<b>${esc(shortCo(x.p.co))}</b><span class="jb"> ${esc(x.p.job||shortRole(x.p.role))}</span></span>`}</span>`).join('')}</button>`}).join('')}</div>${legend}`;
     }
   }
   side=calSide(evm,mode,nar);
