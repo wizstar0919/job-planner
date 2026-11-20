@@ -163,7 +163,7 @@ mark[data-cs]{cursor:pointer}
 .cal .ev.go{cursor:pointer}
 .cal .ev.go:hover{filter:brightness(1.25);outline:1px solid var(--col);outline-offset:-1px}
 
-/* 달력 굵기 통일: 회사명만 굵게, 유형·직무는 보통 (마감 일정도 같게) */
+/* 달력 굵기 통일: [유형]만 굵게, 회사·직무는 보통 (마감 일정도 같게) */
 .cal .ev,.cal .ev.k-due{font-weight:400}
-.cal .ev .ty,.cal .ev .jb{font-weight:400}
-.cal .ev .tx b{font-weight:700}
+.cal .ev .jb,.cal .ev .tx b{font-weight:400}
+.cal .ev .ty{font-weight:700;opacity:1}
