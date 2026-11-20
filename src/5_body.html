@@ -174,8 +174,8 @@ function dueText(p){if(p.dueKind==='확정'&&p.due)return `${md(p.due)} ${p.due.
 function hist(p,t){p.hist.push({id:uid(),d:TODAY,t})}
 const snap=p=>JSON.parse(JSON.stringify(p));
 function restore(p,b){Object.keys(p).forEach(k=>delete p[k]);Object.assign(p,b)}
-function toast(m,undo){const old=app.querySelector('.toast');if(old)old.remove();clearTimeout(toast.t);
-  const el=document.createElement('div');el.className='toast';el.innerHTML=`<span>${esc(m)}</span>`+(undo?'<button data-act="undo">되돌리기</button>':'');app.appendChild(el);
+function toast(m,undo,act){const old=app.querySelector('.toast');if(old)old.remove();clearTimeout(toast.t);
+  const el=document.createElement('div');el.className='toast';el.innerHTML=`<span>${esc(m)}</span>`+(undo?`<button data-act="${act||'undo'}">되돌리기</button>`:'');app.appendChild(el);
   toast.t=setTimeout(()=>{el.remove();if(undo)S.undo=null},undo?4500:2200)}
 function changed(p,before,msg){S.undo={id:p.id,before};dirty(p);render();toast(msg,true)}
 function addAuto(p,t,due){if(!p.tasks.some(x=>x.t===t))p.tasks.push({id:uid(),t,due,done:false,auto:true})}
@@ -243,8 +243,8 @@ const STK={'관심':'start','작성중':'write','제출':'sub','인적성':'test
 const STLEG=[['start','시작 전'],['write','작성 중'],['sub','제출'],['test','인적성·필기'],['int','면접'],['end','종료']];
 function taskRowH(x){const n=diff(x.t.due);return `<div class="row ${x.t.done?'done':''}"><input type="checkbox" class="chk" data-ch="task" data-k="${x.key}" ${x.t.done?'checked':''} ${ro()?'disabled':''} aria-label="완료"><span class="grow"><div class="t">${esc(x.t.t)}${x.t.auto?' <span class="pill mute">자동</span>':''}</div><div class="s">${x.p?esc(shortCo(x.p.co))+' · ':''}${x.t.done?'오늘 완료':n<0?`<span class="late">${md(x.t.due)} 지남</span>`:n===0?'오늘':md(x.t.due)}</div></span>${x.p?`<button class="link-btn" data-act="open" data-id="${x.p.id}">공고 ›</button>`:''}</div>`}
 function calSide(evm,mode,nar){
-  const today=tasksOf(S.who).filter(x=>x.t.due&&diff(x.t.due)<=0&&(!x.t.done||x.t.doneAt===TODAY)).sort((a,b)=>(a.t.done-b.t.done)||a.t.due.localeCompare(b.t.due));
-  const left=today.filter(x=>!x.t.done).length;
+  const today=tasksOf(S.who).filter(x=>x.t.due&&diff(x.t.due)<=0&&!x.t.done).sort((a,b)=>a.t.due.localeCompare(b.t.due));
+  const left=today.length;
   let h=`<section class="sec"><h3>오늘 할 일 <span class="count">${left}</span></h3><div class="list">${today.length?today.map(taskRowH).join(''):'<div class="empty">오늘 기한인 할 일이 없어요</div>'}</div></section>`;
   const hot=vis(S.who).filter(p=>isOpen(p)&&p.dueKind==='확정'&&p.due&&diff(p.due)>=0&&diff(p.due)<=2).sort((a,b)=>a.due.localeCompare(b.due));
   if(hot.length)h+=`<section class="sec"><h3>🔥 마감 임박 공고 <span class="count">${hot.length}</span></h3><div class="list">${hot.map(p=>{const n=diff(p.due);return rowOpen(p.id,'',`<span class="dd ${ddC(n)}">${ddL(n)}</span><span class="grow"><div class="t oneline" title="${esc(full(p))}">${esc(label(p))}</div><div class="s">${md(p.due)} ${p.due.slice(11,16)} 마감</div></span><span class="chev">›</span>`)}).join('')}</div></section>`;
@@ -698,6 +698,7 @@ document.addEventListener('click',e=>{
     case 'open-c':S.open=id;S.flash=t.dataset.c;S.editQ=null;{const q=find(id);if(q)markRead(q)}render();break;
     case 'close':S.open=null;S.ed=null;S.delAsk=false;S.editQ=null;S.flash=null;hidePop();render();break;
     case 'dlg-close':closeDlg();break;
+    case 'undo-task':if(S.undoTask){const k=S.undoTask.split(':');const tk=k[0]==='g'?DB[k[1]].tasks[+k[2]]:(find(k[0])||{tasks:[]}).tasks[+k[1]];if(tk){tk.done=false;tk.doneAt='';if(k[0]==='g')dirtyG(k[1]);else dirty(find(k[0]))}S.undoTask=null;render();toast('되돌렸어요')}break;
     case 'undo':if(S.undo){const q=find(S.undo.id);if(q){restore(q,S.undo.before);dirty(q)}S.undo=null;render();toast('되돌렸어요')}break;
     case 'stage-menu':stageMenu(id);break;
     case 'set-stage':setStage(find(id),v);break;
@@ -781,7 +782,7 @@ document.addEventListener('change',e=>{
   if(el.dataset.f==='dueKind'||el.dataset.f==='job'){syncForm();formDlg();return}
   if(!c)return;const p=S.open?find(S.open):null;
   if(c==='task'){const k=el.dataset.k.split(':');let tk;if(k[0]==='g'){tk=DB[k[1]].tasks[+k[2]]}else{const q=find(k[0]);tk=q.tasks[+k[1]]}
-    tk.done=el.checked;tk.doneAt=el.checked?TODAY:'';if(k[0]==='g')dirtyG(k[1]);else dirty(find(k[0]));render();if(el.checked)toast('완료했어요. 체크를 풀면 되돌아가요')}
+    tk.done=el.checked;tk.doneAt=el.checked?TODAY:'';if(k[0]==='g')dirtyG(k[1]);else dirty(find(k[0]));render();if(el.checked){S.undoTask=el.dataset.k;toast('완료했어요',true,'undo-task')}}
   if(c==='stage'&&p)setStage(p,el.value);
   if(c==='qst'&&p){const q=p.qs[+el.dataset.i];q.st=el.value;q.lock=el.value==='제출본';dirty(p);render();if(q.lock)toast('제출본으로 잠갔어요')}
   if(c==='find'){S.fInd=el.value;$('#boardBody').innerHTML=boardBody()}
