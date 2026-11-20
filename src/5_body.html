@@ -698,6 +698,7 @@ function settingsDlg(){const w=S.me;show(()=>dlgHead('설정 · '+esc(nm(w)))+`<
 const BLANK=()=>({co:'',short:'',job:'',role:'',type:'',ind:'',loc:'',applyStart:'',dueKind:'확정',due:'',recheck:'',steps:'서류 > 면접',link:'',relLink:'',events:[],qs:[],memo:'',stage:'관심'});
 function addDlg(){
   const a=S.add;
+  if(a.phase==='pick'&&a.res){show(()=>pickHTML(a));return}
   if(a.phase==='loading'){show(()=>dlgHead('공고 추가')+`<div class="dlg-b" style="text-align:center"><div class="spin"></div><b>공고를 읽고 있어요</b><span class="muted">회사·직무·마감·전형·문항을 정리하는 중 (보통 10~40초)</span></div>`);return}
   show(()=>dlgHead('공고 추가')+`<div class="dlg-b">
    ${a.resumed?`<div class="note info">작성하던 내용을 이어서 보여 드려요. <button class="link-btn" data-act="add-new">새로 시작 ›</button></div>`:''}
@@ -814,12 +815,27 @@ async function runExtract(){
   if((A.imgUrls||[]).length)input.imageUrls=A.imgUrls.slice(0,MAX_IMGS);
   A.phase='loading';addDlg();
   try{const j=await api('extract',{input});if(S.add!==A)return;if(j.usage){usage=j.usage;LS.set('usage',usage)}const d=j.data;
-    A.phase='review';S.form={mode:'review',v:{co:d.co||'',short:d.short||'',job:d.job||'',role:d.role||'',type:d.type||'',ind:d.ind||'',loc:d.loc||'',applyStart:d.applyStart||'',dueKind:d.dueKind||'미확인',due:(d.due||'').slice(0,16),recheck:'',
-      steps:(d.steps&&d.steps.length?d.steps:['서류']).join(' > '),link:input.url||'',relLink:'',events:(d.events||[]).filter(e=>/^\d{4}-\d{2}-\d{2}/.test(e.d)).map(e=>({d:e.d.slice(0,10),k:e.k,t:e.t})),qs:(d.qs||[]).map(q=>({t:q.t,n:q.n||0})),memo:d.memo||'',stage:'관심'}};
-    A.lastForm=S.form;formDlg()}
+    if((d.positions||[]).length>1){A.res={d,url:input.url||''};A.phase='pick';addDlg();return}
+    reviewFrom(A,d,input.url||'')}
   catch(e){if(S.add!==A)return;A.phase='input';if(e.code==='need_capture')A.tab='cap';if(e.code==='unreadable'&&e.usage){usage=e.usage;LS.set('usage',usage)}
     let why='';if(e.code==='api_error'&&e.detail){try{why=JSON.parse(e.detail).error.message}catch(x){why=String(e.detail).slice(0,120)}}
     A.warn=errMsg(e)+(e.code==='unreadable'&&e.detail?` (${e.detail})`:'')+(why?` · ${why}`:'');addDlg()}
+}
+/* 직무가 여러 개인 공고: 지원한 기록이 많은 직무 분류를 추천으로 위에 */
+function posRank(list){const cnt={};vis(S.me).filter(isSub).forEach(p=>{if(p.job)cnt[p.job]=(cnt[p.job]||0)+1});
+  const top=Object.entries(cnt).sort((a,b)=>b[1]-a[1]).slice(0,3).map(x=>x[0]);
+  return list.map((x,i)=>({x,i,c:cnt[x.job]||0,rec:!!x.job&&top.includes(x.job)})).sort((a,b)=>(b.rec-a.rec)||(b.c-a.c)||(a.i-b.i))}
+function pickHTML(a){const d=a.res.d,rows=posRank(d.positions);
+  return dlgHead('공고 추가')+`<div class="dlg-b">
+   <div class="note info"><b>${esc(d.co||'이 공고')}</b>엔 모집 직무가 <b>${d.positions.length}개</b> 있어요. 지원할 직무를 하나 골라 주세요</div>
+   <div class="pos-list">${rows.map(r=>`<button class="pos ${r.rec?'rec':''}" data-act="pick-pos" data-v="${r.i}">
+     <span class="pos-t">${r.rec?'<span class="pill ok">추천</span> ':''}<b>${esc(r.x.role||'(이름 없음)')}</b></span>
+     <span class="pos-s muted small">${[r.x.job,r.x.career,r.x.loc,r.x.note].filter(Boolean).map(esc).join(' · ')}${r.rec?` · 자주 지원한 직무 (${esc(r.x.job)} ${r.c}건)`:''}</span></button>`).join('')}</div>
+   <button class="link-btn small" data-act="pick-back">‹ 다시 정리하기</button></div>`}
+function reviewFrom(A,d,url,pos){pos=pos||{};
+    A.phase='review';S.form={mode:'review',v:{co:d.co||'',short:d.short||'',job:pos.job||d.job||'',role:pos.role||d.role||'',type:d.type||'',ind:d.ind||'',loc:pos.loc||d.loc||'',applyStart:d.applyStart||'',dueKind:d.dueKind||'미확인',due:(d.due||'').slice(0,16),recheck:'',
+      steps:(d.steps&&d.steps.length?d.steps:['서류']).join(' > '),link:url,relLink:'',events:(d.events||[]).filter(e=>/^\d{4}-\d{2}-\d{2}/.test(e.d)).map(e=>({d:e.d.slice(0,10),k:e.k,t:e.t})),qs:(d.qs||[]).map(q=>({t:q.t,n:q.n||0})),memo:[pos.note?`지원 직무: ${pos.role}${pos.career?' ('+pos.career+')':''} — ${pos.note}`:'',d.memo||''].filter(Boolean).join(' · '),stage:'관심'}};
+    A.lastForm=S.form;formDlg()
 }
 
 /* ================= 달력 칸 맞추기: 칸 높이에 들어가는 만큼만 보이고 나머지는 +N ================= */
@@ -934,6 +950,8 @@ document.addEventListener('click',e=>{
     case 'clear-img':S.add.imgs=[];S.add.imgUrls=[];addDlg();break;
     case 'add-img-url':{const el=$('#aImgUrl');addImgUrl(el?el.value:'');break}
     case 'paste-clip':pasteClip();break;
+    case 'pick-pos':if(S.add&&S.add.res){const r=S.add.res;reviewFrom(S.add,r.d,r.url,r.d.positions[+v])}break;
+    case 'pick-back':if(S.add){S.add.phase='input';S.add.res=null;addDlg()}break;
     case 'extract':runExtract();break;
     case 'manual':readAddInputs();S.form={mode:'manual',v:Object.assign(BLANK(),{link:S.add.link||''})};S.add.lastForm=S.form;S.add.phase='review';formDlg();break;
     case 'form-back':syncForm();if(S.add){S.add.lastForm=S.form;S.add.phase='input';S.form=null;S.add.resumed=false;addDlg()}break;
