@@ -232,3 +232,13 @@ mark[data-cs]{cursor:pointer}
 
 /* 자소서: 줄바꿈마다 문단 간격 */
 .ans .pg{display:block;height:.55em}
+
+/* 공고 추가 · 캡처: 휴대폰 붙여넣기, 이미지 주소 */
+.paste-row{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}
+.paste-box{flex:1 1 180px;min-height:36px;border:1px dashed var(--line);border-radius:8px;padding:8px 10px;font-size:13px;color:var(--muted);outline:none;overflow:hidden;white-space:nowrap}
+.paste-box:empty::before{content:attr(data-ph)}
+.paste-box:focus{border-color:var(--accent)}
+@media (hover:hover) and (pointer:fine){.paste-box{display:none}}
+.img-url{margin:10px 0}
+.img-url input{flex:1}
+.thumbs img.broken{opacity:.35;outline:1px dashed var(--due)}

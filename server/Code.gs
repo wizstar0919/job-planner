@@ -192,11 +192,33 @@ function extract_(input) {
   let pageTxt = '';
   if (input.url) {
     pageTxt = pageText_(input.url);
-    if (pageTxt.length < 400 && !(input.images && input.images.length) && !input.text) return { ok: false, error: 'need_capture' };
+    if (pageTxt.length < 400 && !(input.images && input.images.length) && !(input.imageUrls && input.imageUrls.length) && !input.text) return { ok: false, error: 'need_capture' };
   }
   (input.images || []).slice(0, 8).forEach(img => {
     content.push({ type: 'image', source: { type: 'base64', media_type: img.type || 'image/jpeg', data: img.data } });
   });
+  // 이미지 주소: 서버가 대신 받아서 넣음 (jpeg/png/gif/webp, 5MB 이하)
+  let urlImgs = 0; const urlFail = [];
+  (input.imageUrls || []).slice(0, Math.max(0, 8 - (input.images || []).length)).forEach(u => {
+    try {
+      if (!/^https?:\/\//i.test(String(u))) return;
+      const r = UrlFetchApp.fetch(String(u), { muteHttpExceptions: true, followRedirects: true,
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36' } });
+      if (r.getResponseCode() !== 200) { urlFail.push(String(u)); return; }
+      const blob = r.getBlob(), bytes = blob.getBytes();
+      let type = String(blob.getContentType() || '').split(';')[0].toLowerCase();
+      if (!/^image\/(jpeg|png|gif|webp)$/.test(type)) {
+        const b0 = bytes[0] & 255, b1 = bytes[1] & 255;
+        type = b0 === 0xFF && b1 === 0xD8 ? 'image/jpeg' : b0 === 0x89 && b1 === 0x50 ? 'image/png' : b0 === 0x47 ? 'image/gif' : b0 === 0x52 ? 'image/webp' : '';
+      }
+      if (!type || bytes.length > 5 * 1024 * 1024) { urlFail.push(String(u)); return; }
+      content.push({ type: 'image', source: { type: 'base64', media_type: type, data: Utilities.base64Encode(bytes) } });
+      urlImgs++;
+    } catch (e) { urlFail.push(String(u)); }
+  });
+  // 서버가 못 받은 이미지는 Claude가 직접 주소로 받아 보게 함 (일부 사이트는 구글 서버 접속을 막음)
+  urlFail.forEach(u => { content.push({ type: 'image', source: { type: 'url', url: u } }); urlImgs++; });
+  if ((input.imageUrls || []).length && !urlImgs && !(input.images || []).length && !input.text && pageTxt.length < 400) return { ok: false, error: 'img_fetch' };
   const today = Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd');
   const jobList = (input.jobs && input.jobs.length ? input.jobs : ['영업','자산운용','채권운용','자금','재무/회계','경영지원/기획','리스크/심사','사업개발']).map(String);
   const jobs = jobList.join(', ');
@@ -218,7 +240,7 @@ function extract_(input) {
     '- short: 휴대폰 달력의 좁은 칸에 쓸 회사 줄임말. 한글 2~4자 또는 영문 약자 2~5자로 널리 쓰는 이름 (예: SK네트웍스서비스→SKNS, 고영테크놀러지→고영, 한국투자증권→한투)\n' +
     (input.text ? '\n[붙여넣은 공고 본문]\n' + String(input.text).slice(0, 60000) + '\n' : '') +
     (pageTxt ? '\n[링크에서 가져온 내용] ' + input.url + '\n' + pageTxt + '\n' : '') +
-    ((input.images || []).length ? '\n[위 이미지는 공고 화면 캡처입니다]\n' : '')
+    (((input.images || []).length || urlImgs) ? '\n[위 이미지는 공고 화면 캡처입니다]\n' : '')
   });
 
   const schema = { type: 'object', additionalProperties: false,
@@ -255,6 +277,7 @@ function extract_(input) {
   const txt = res.getContentText();
   if (code !== 200) {
     console.error('Claude API ' + code + ' ' + txt.slice(0, 1000));
+    if (code === 400 && urlFail.length && /image|url|fetch|download/i.test(txt)) return { ok: false, error: 'img_fetch', detail: txt.slice(0, 300) };
     return { ok: false, error: code === 429 ? 'rate_limited' : code === 401 ? 'bad_api_key' : 'api_error', detail: txt.slice(0, 300) };
   }
   const msg = JSON.parse(txt);

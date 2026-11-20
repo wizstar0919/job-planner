@@ -151,7 +151,7 @@ async function refresh(quiet){
   catch(e){if(!quiet)toast(errMsg(e))}
 }
 function errMsg(e){const c=e&&e.code;return {network:'인터넷 연결을 확인해 주세요',bad_password:'비밀번호가 맞지 않아요',locked:'비밀번호를 여러 번 틀려서 10분 동안 잠겼어요',no_server:'서버 주소가 없어요',
-  no_api_key:'공고 정리용 API 키가 아직 연결되지 않았어요',limit:'오늘 공고 정리 한도를 다 썼어요',need_capture:'링크로 내용을 읽을 수 없는 사이트예요. 캡처를 올려 주세요',
+  no_api_key:'공고 정리용 API 키가 아직 연결되지 않았어요',limit:'오늘 공고 정리 한도를 다 썼어요',need_capture:'링크로 내용을 읽을 수 없는 사이트예요. 캡처를 올려 주세요',img_fetch:'이미지 주소에서 그림을 가져오지 못했어요. 캡처로 올려 주세요',
   refusal:'이 공고는 정리할 수 없었어요. 직접 입력해 주세요',rate_limited:'요청이 많아요. 잠시 뒤 다시 시도해 주세요',bad_api_key:'API 키가 맞지 않아요',
   too_long:'공고가 너무 길어요. 필요한 부분만 붙여넣어 주세요',parse_error:'정리 결과를 읽지 못했어요. 다시 시도해 주세요'}[c]||('문제가 생겼어요 ('+(c||'알 수 없음')+')')}
 
@@ -704,7 +704,10 @@ function addDlg(){
    <div class="tabs">${[['link','🔗 링크'],['cap','🖼 캡처'],['text','📄 붙여넣기']].map(t=>`<button class="${a.tab===t[0]?'on':''}" data-act="add-tab" data-v="${t[0]}">${t[1]}</button>`).join('')}</div>
    ${a.warn?`<div class="note">${esc(a.warn)}</div>`:''}
    ${a.tab==='link'?`<div class="field"><label for="aLink">공고 주소</label><input id="aLink" type="url" placeholder="https://" value="${esc(a.link)}"></div>`:''}
-   ${a.tab==='cap'?`<label class="drop" for="aImg"><b>공고 화면 캡처 올리기</b><span>여러 장 가능 · PC에선 붙여넣기(Ctrl+V)도 돼요</span><input id="aImg" type="file" accept="image/*" multiple hidden><span class="btn sm">이미지 고르기</span></label>${a.imgs.length?`<div class="thumbs">${a.imgs.map(s=>`<img src="${s}" alt="올린 캡처">`).join('')}</div><button class="link-btn small" data-act="clear-img">캡처 지우기</button>`:''}`:''}
+   ${a.tab==='cap'?`<label class="drop" for="aImg"><b>공고 화면 캡처 올리기</b><span>여러 장 가능 · PC에선 붙여넣기(Ctrl+V)도 돼요</span><input id="aImg" type="file" accept="image/*" multiple hidden><span class="btn sm">이미지 고르기</span></label>
+   <div class="paste-row"><button class="btn sm" data-act="paste-clip">📋 복사한 이미지 붙여넣기</button><div class="paste-box" contenteditable="true" role="textbox" aria-label="여기를 길게 눌러 붙여넣기" data-ph="또는 여기를 길게 눌러 [붙여넣기]"></div></div>
+   <div class="inline img-url"><input type="url" id="aImgUrl" placeholder="이미지 주소 붙여넣기 (https://…)" aria-label="이미지 주소"><button class="btn sm" data-act="add-img-url">추가</button></div>
+   ${a.imgs.length||(a.imgUrls||[]).length?`<div class="thumbs">${a.imgs.map(s=>`<img src="${s}" alt="올린 캡처">`).join('')}${(a.imgUrls||[]).map(u=>`<img src="${esc(u)}" alt="이미지 주소" referrerpolicy="no-referrer" title="${esc(u)}" onerror="this.classList.add('broken')">`).join('')}</div><button class="link-btn small" data-act="clear-img">캡처 지우기</button>`:''}`:''}
    ${a.tab==='text'?`<div class="field"><label for="aText">공고 본문</label><textarea id="aText" placeholder="채용 공고 내용을 복사해서 붙여넣어 주세요">${esc(a.text)}</textarea></div>`:''}
    <button class="btn primary block" data-act="extract" ${usage.hasKey===false?'disabled':''}>✨ 자동 정리</button>
    ${usage.hasKey!==false?'':'<span class="muted small">공고 정리용 API 키가 아직 연결되지 않았어요. 연결 전에는 "직접 입력"을 써 주세요</span>'}
@@ -720,7 +723,7 @@ function formDlg(){
   const title=m==='review'?'정리 결과 확인':m==='manual'?'공고 직접 입력':'정보 수정';
   const a=S.add;const jobs=DB[S.me].jobs;
   const orig=rev&&a?`<details class="orig"><summary>원문 보기 (넣은 ${a.tab==='link'?'링크':a.tab==='cap'?'캡처':'본문'})</summary><div class="body">
-    ${a.link?`<div>링크: <a class="link-btn" href="${esc(a.link)}" target="_blank" rel="noopener">${esc(a.link)}</a></div>`:''}${a.text?`<pre>${esc(a.text.slice(0,3000))}</pre>`:''}${a.imgs.length?`<div class="thumbs">${a.imgs.map(s=>`<img src="${s}" alt="올린 캡처">`).join('')}</div>`:''}</div></details>`:'';
+    ${a.link?`<div>링크: <a class="link-btn" href="${esc(a.link)}" target="_blank" rel="noopener">${esc(a.link)}</a></div>`:''}${a.text?`<pre>${esc(a.text.slice(0,3000))}</pre>`:''}${a.imgs.length||(a.imgUrls||[]).length?`<div class="thumbs">${a.imgs.map(s=>`<img src="${s}" alt="올린 캡처">`).join('')}${(a.imgUrls||[]).map(u=>`<img src="${esc(u)}" alt="이미지 주소" referrerpolicy="no-referrer">`).join('')}</div>`:''}</div></details>`:'';
   show(()=>dlgHead(title,m==='edit'?null:'form-back')+`<div class="dlg-b">
    ${a&&a.resumed&&m!=='edit'?'<div class="note info">작성하던 내용을 이어서 보여 드려요. <button class="link-btn" data-act="add-new">새로 시작 ›</button></div>':''}
    ${rev?'<div class="note">노란 칸은 공고에서 못 찾은 항목이에요. 채우거나 비워 두세요.</div>':''}
@@ -773,16 +776,26 @@ function saveForm(){
 }
 function shrink(dataUrl){return new Promise(res=>{const img=new Image();img.onload=()=>{const M=1568;let w=img.width,h=img.height;const r=Math.min(1,M/Math.max(w,h));w=Math.round(w*r);h=Math.round(h*r);
   const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);res(c.toDataURL('image/jpeg',0.85))};img.onerror=()=>res(dataUrl);img.src=dataUrl})}
+const isUrl=s=>/^https?:\/\/\S+$/i.test(String(s||'').trim());
+function addImgUrl(u){u=String(u||'').trim();const A=S.add;if(!A)return;if(!isUrl(u)){toast('https:// 로 시작하는 이미지 주소를 넣어 주세요');return}
+  A.imgUrls=A.imgUrls||[];if(A.imgs.length+A.imgUrls.length>=8){toast('이미지는 8장까지 넣을 수 있어요');return}
+  if(!A.imgUrls.includes(u))A.imgUrls.push(u);A.warn='';addDlg()}
+async function pasteClip(){/* 휴대폰: 클립보드 읽기 (사파리는 [붙여넣기] 말풍선이 한 번 뜸) */
+  try{if(!navigator.clipboard||!navigator.clipboard.read)throw 0;const items=await navigator.clipboard.read();const fs=[];let txt='';
+    for(const it of items){const t=it.types.find(x=>x.startsWith('image/'));if(t){const bl=await it.getType(t);fs.push(new File([bl],'clip',{type:t}))}else if(it.types.includes('text/plain')){txt=await (await it.getType('text/plain')).text()}}
+    if(fs.length)addFiles(fs);else if(isUrl(txt))addImgUrl(txt);else toast('복사한 이미지가 없어요')}
+  catch(e){toast('이 기기에선 바로 못 읽어요. 아래 칸을 길게 눌러 [붙여넣기] 해 주세요')}}
 function addFiles(files){const fs=[...files].filter(f=>f.type.startsWith('image/')).slice(0,8);if(!fs.length)return;let left=fs.length;
   fs.forEach(f=>{const r=new FileReader();r.onload=async()=>{S.add.imgs.push(await shrink(r.result));if(--left===0){S.add.warn='';addDlg()}};r.readAsDataURL(f)})}
 async function runExtract(){
   readAddInputs();const A=S.add;
-  const has=(A.tab==='link'&&A.link.trim())||(A.tab==='cap'&&A.imgs.length)||(A.tab==='text'&&A.text.trim());
+  const has=(A.tab==='link'&&A.link.trim())||(A.tab==='cap'&&(A.imgs.length||(A.imgUrls||[]).length))||(A.tab==='text'&&A.text.trim());
   if(!has){A.warn='링크, 캡처, 본문 중 하나를 넣어 주세요.';addDlg();return}
   const input={jobs:DB[S.me].jobs,inds:DB[S.me].inds};
   if(A.link.trim())input.url=A.link.trim();
   if(A.text.trim())input.text=A.text.trim();
   if(A.imgs.length)input.images=A.imgs.map(s=>({type:'image/jpeg',data:s.split(',')[1]}));
+  if((A.imgUrls||[]).length)input.imageUrls=A.imgUrls.slice(0,8);
   A.phase='loading';addDlg();
   try{const j=await api('extract',{input});if(S.add!==A)return;if(j.usage){usage=j.usage;LS.set('usage',usage)}const d=j.data;
     A.phase='review';S.form={mode:'review',v:{co:d.co||'',short:d.short||'',job:d.job||'',role:d.role||'',type:d.type||'',ind:d.ind||'',loc:d.loc||'',applyStart:d.applyStart||'',dueKind:d.dueKind||'미확인',due:(d.due||'').slice(0,16),recheck:'',
@@ -897,10 +910,12 @@ document.addEventListener('click',e=>{
     case 'forget':LS.del('cfg');LS.del('cache');location.reload();break;
     case 'add':if(ro())break;S.open=null;
       if(S.addDraft){S.add=S.addDraft;S.addDraft=null;S.add.resumed=true;if(S.add.phase==='review'&&S.add.lastForm){S.form=S.add.lastForm;formDlg()}else{S.add.phase='input';addDlg()}}
-      else{S.add={tab:'link',imgs:[],link:'',text:'',warn:'',phase:'input'};addDlg()}break;
-    case 'add-new':S.add={tab:'link',imgs:[],link:'',text:'',warn:'',phase:'input'};S.form=null;addDlg();break;
+      else{S.add={tab:'link',imgs:[],imgUrls:[],link:'',text:'',warn:'',phase:'input'};addDlg()}break;
+    case 'add-new':S.add={tab:'link',imgs:[],imgUrls:[],link:'',text:'',warn:'',phase:'input'};S.form=null;addDlg();break;
     case 'add-tab':readAddInputs();S.add.tab=v;S.add.warn='';addDlg();break;
-    case 'clear-img':S.add.imgs=[];addDlg();break;
+    case 'clear-img':S.add.imgs=[];S.add.imgUrls=[];addDlg();break;
+    case 'add-img-url':{const el=$('#aImgUrl');addImgUrl(el?el.value:'');break}
+    case 'paste-clip':pasteClip();break;
     case 'extract':runExtract();break;
     case 'manual':readAddInputs();S.form={mode:'manual',v:Object.assign(BLANK(),{link:S.add.link||''})};S.add.lastForm=S.form;S.add.phase='review';formDlg();break;
     case 'form-back':syncForm();if(S.add){S.add.lastForm=S.form;S.add.phase='input';S.form=null;S.add.resumed=false;addDlg()}break;
@@ -961,7 +976,14 @@ document.addEventListener('selectionchange',()=>{
   if(txt&&box&&!box.classList.contains('empty-a')&&txt.length<=300){S.sel={qi:+box.dataset.qi,quote:qt};$('#selTxt').textContent=`“${txt}”`;bar.hidden=false}
   else if(!(document.activeElement&&document.activeElement.closest&&document.activeElement.closest('.selbar')))bar.hidden=true;
 });
-document.addEventListener('paste',e=>{if(!S.add||S.add.phase!=='input'||S.add.tab!=='cap')return;const fs=[...((e.clipboardData||{}).items||[])].filter(i=>i.type.startsWith('image/')).map(i=>i.getAsFile());if(fs.length)addFiles(fs)});
+document.addEventListener('paste',e=>{if(!S.add||S.add.phase!=='input'||S.add.tab!=='cap')return;const cd=e.clipboardData||{};
+  const fs=[...(cd.items||[])].filter(i=>i.type.startsWith('image/')).map(i=>i.getAsFile()).filter(Boolean);
+  const inBox=e.target&&e.target.closest&&e.target.closest('.paste-box');
+  if(fs.length){e.preventDefault();addFiles(fs);return}
+  const txt=cd.getData?cd.getData('text/plain'):'';
+  if(e.target&&e.target.id==='aImgUrl')return;
+  if(isUrl(txt)&&(inBox||!(e.target&&/INPUT|TEXTAREA/.test(e.target.tagName)))){e.preventDefault();addImgUrl(txt);return}
+  if(inBox){e.preventDefault();toast('복사한 이미지가 없어요')}});
 document.addEventListener('dragstart',e=>{const c=e.target.closest&&e.target.closest('.card[draggable]');if(c){e.dataTransfer.setData('text/plain',c.dataset.id);e.dataTransfer.effectAllowed='move'}});
 document.addEventListener('dragover',e=>{const col=e.target.closest&&e.target.closest('.col');if(col&&!ro()){e.preventDefault();document.querySelectorAll('.col.over').forEach(x=>x!==col&&x.classList.remove('over'));col.classList.add('over')}});
 document.addEventListener('dragleave',e=>{const col=e.target.closest&&e.target.closest('.col');if(col&&!col.contains(e.relatedTarget))col.classList.remove('over')});
