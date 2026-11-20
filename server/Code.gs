@@ -18,7 +18,7 @@ const SCHEMA = {
   posts: { tab: '공고', cols: [['id','id'],['co','회사'],['job','지원 직무'],['role','상세 직무명'],['type','유형'],['ind','업권'],['loc','근무지'],
     ['link','공고 링크'],['relLink','관련 자료'],['applyStart','접수 시작'],['dueKind','마감 종류'],['due','마감'],['recheck','재확인일'],
     ['stage','단계'],['result','결과'],['failAt','탈락 단계'],['submitted','제출일'],['steps','전형 절차'],['cur','현재 전형'],
-    ['memo','비고'],['src','등록 경로'],['created','생성일'],['updated','수정일'],['short','달력 표시 이름']] },
+    ['memo','비고'],['src','등록 경로'],['created','생성일'],['updated','수정일'],['short','달력 표시 이름'],['rev','수정번호']] },
   qs: { tab: '문항', cols: [['id','id'],['pid','공고 id'],['i','순번'],['t','문항'],['n','글자 수'],['a','답변'],['st','상태'],['lock','잠금'],['ver','버전']] },
   events: { tab: '일정', cols: [['id','id'],['pid','공고 id'],['d','날짜'],['k','종류'],['t','내용']] },
   tasks: { tab: '할 일', cols: [['id','id'],['pid','공고 id'],['t','내용'],['due','기한'],['done','완료'],['doneAt','완료일'],['auto','자동']] },
@@ -141,8 +141,17 @@ function batch_(w, ops) {
   try {
     const b = book_(w), cache = {};
     const get = t => { if (!SCHEMA[t]) throw new Error('알 수 없는 표: ' + t); if (!cache[t]) cache[t] = readTable_(b, t); return cache[t]; };
+    // 다른 기기에서 먼저 바뀐 공고는 그 공고 묶음(unit)만 저장하지 않고 알려 줌
+    const conflicts = [], revs = {};
     ops.forEach(op => {
+      if (op.op !== 'check') return;
+      const cur = get('posts').find(r => r.id === String(op.id));
+      if (String(cur ? (cur.rev || '') : '') !== String(op.rev || '') && conflicts.indexOf(op.unit) < 0) conflicts.push(op.unit);
+    });
+    ops.forEach(op => {
+      if (op.op === 'check' || (op.unit && conflicts.indexOf(op.unit) >= 0)) return;
       const rows = get(op.table);
+      if (op.table === 'posts' && op.op === 'upsert') (op.rows || []).forEach(n => { n.rev = Utilities.getUuid().slice(0, 8); revs[n.id] = n.rev; });
       if (op.op === 'replace') {
         cache[op.table] = rows.filter(r => r[op.key] !== String(op.value)).concat(op.rows || []);
       } else if (op.op === 'upsert') {
@@ -156,7 +165,7 @@ function batch_(w, ops) {
       }
     });
     Object.keys(cache).forEach(t => writeTable_(b, t, cache[t]));
-    return { ok: true, at: new Date().toISOString() };
+    return { ok: true, at: new Date().toISOString(), conflicts: conflicts, revs: revs };
   } finally {
     lock.releaseLock();
   }

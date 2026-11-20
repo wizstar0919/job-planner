@@ -94,20 +94,38 @@ function build(w,t){
   posts.forEach(p=>{if(p.stage==='전형'||!COLNAME[p.stage])p.stage=p.stage==='전형'?stageOfStep(p.steps[p.cur]):'관심'});
   posts.forEach(p=>{p.hist.sort((a,b)=>String(a.d).localeCompare(String(b.d)));if(!p.hist.length)p.hist=[{id:uid(),d:p.created||TODAY,t:'등록'}]});
   (t.settings||[]).forEach(r=>{try{if(r.k==='jobs')P0.jobs=JSON.parse(r.v);if(r.k==='inds')P0.inds=JSON.parse(r.v);if(r.k==='auto')P0.auto=Object.assign({...DEFAULT_AUTO},JSON.parse(r.v))}catch(e){}});
-  P0.posts=posts;return P0;
+  posts.forEach(p=>{const r=(t.posts||[]).find(x=>x.id===p.id);p._rev=(r&&r.rev)||'';p._snap=snapOf(p)});
+  P0.posts=posts;P0._gsnap={};P0.tasks.forEach(x=>{P0._gsnap[x.id]=JSON.stringify(gRow(x))});return P0;
 }
 function setData(data){['me','gh'].forEach(w=>{Object.assign(DB[w],build(w,data[w]))});loaded=true}
 const postRow=p=>({id:p.id,co:p.co,job:p.job,role:p.role,type:p.type,ind:p.ind,loc:p.loc,link:p.link,relLink:p.relLink,applyStart:p.applyStart,dueKind:p.dueKind,due:p.due||'',recheck:p.recheck,
   stage:p.stage,result:p.result,failAt:p.failAt,submitted:p.submitted,steps:p.steps.join(' > '),cur:p.cur,memo:p.memo,short:p.short||'',src:p.src||'',created:p.created||TODAY,updated:new Date().toISOString().slice(0,16)});
 const cRow=(p,c)=>({id:c.id,pid:p.id,qi:c.qi<0?'':c.qi,quote:c.quote,text:c.text,by:c.by,at:c.at,replies:JSON.stringify(c.replies||[]),resolved:Y(c.resolved),read:Y(c.read),ver:c.ver||''});
+/* 저장 규칙 (2026-11-21)
+   ① 바뀐 줄만 저장: 불러올 때 찍어 둔 사진(_snap)과 비교해서 바뀐 일정·할 일·문항만 올리고, 내가 지운 것만 지움
+      → 오래된 화면이 저장해도 다른 기기에서 넣은 일정을 지우지 않음
+   ② 다른 기기 변경 감지: 공고마다 수정번호(rev). 내가 본 뒤 서버에서 바뀌었으면 서버가 저장을 거절 → 새로 불러옴 */
+function ensureIds(p){p.qs.forEach(q=>{if(!q.id)q.id=uid()});p.events.forEach(e=>{if(!e.id)e.id=uid()});p.tasks.forEach(t=>{if(!t.id)t.id=uid()});p.hist.forEach(h=>{if(!h.id)h.id=uid()})}
+const childRows=p=>({
+  qs:p.qs.map((q,i)=>({id:q.id,pid:p.id,i,t:q.t,n:q.n,a:q.a,st:q.st,lock:Y(q.lock),ver:q.ver||''})),
+  events:p.events.map(e=>({id:e.id,pid:p.id,d:e.d,k:e.k,t:e.t})),
+  tasks:p.tasks.map(t=>({id:t.id,pid:p.id,t:t.t,due:t.due,done:Y(t.done),doneAt:t.doneAt||'',auto:Y(t.auto)})),
+  hist:p.hist.map(h=>({id:h.id,pid:p.id,d:h.d,t:h.t}))});
+const postCore=p=>{const r=postRow(p);delete r.updated;return r};
+function snapOf(p){ensureIds(p);const c=childRows(p),s={post:JSON.stringify(postCore(p))};Object.keys(c).forEach(t=>{s[t]={};c[t].forEach(r=>{s[t][r.id]=JSON.stringify(r)})});return s}
 function bundleOps(p){
-  p.qs.forEach(q=>{if(!q.id)q.id=uid()});p.events.forEach(e=>{if(!e.id)e.id=uid()});p.tasks.forEach(t=>{if(!t.id)t.id=uid()});p.hist.forEach(h=>{if(!h.id)h.id=uid()});
-  return [{op:'upsert',table:'posts',rows:[postRow(p)]},
-    {op:'replace',table:'qs',key:'pid',value:p.id,rows:p.qs.map((q,i)=>({id:q.id,pid:p.id,i,t:q.t,n:q.n,a:q.a,st:q.st,lock:Y(q.lock),ver:q.ver||''}))},
-    {op:'replace',table:'events',key:'pid',value:p.id,rows:p.events.map(e=>({id:e.id,pid:p.id,d:e.d,k:e.k,t:e.t}))},
-    {op:'replace',table:'tasks',key:'pid',value:p.id,rows:p.tasks.map(t=>({id:t.id,pid:p.id,t:t.t,due:t.due,done:Y(t.done),doneAt:t.doneAt||'',auto:Y(t.auto)}))},
-    {op:'replace',table:'hist',key:'pid',value:p.id,rows:p.hist.map(h=>({id:h.id,pid:p.id,d:h.d,t:h.t}))}];
+  ensureIds(p);const S0=p._snap||{post:'',qs:{},events:{},tasks:{},hist:{}},c=childRows(p),ops=[];let changed=JSON.stringify(postCore(p))!==S0.post;
+  Object.keys(c).forEach(t=>{const now=new Set(),up=[];
+    c[t].forEach(r=>{now.add(r.id);if(S0[t][r.id]!==JSON.stringify(r))up.push(r)});
+    if(up.length){ops.push({op:'upsert',table:t,rows:up});changed=true}
+    Object.keys(S0[t]).forEach(id=>{if(!now.has(id)){ops.push({op:'remove',table:t,key:'id',value:id});changed=true}})});
+  if(!changed)return {ops:[]};
+  const unit='p:'+p.id,snapNow=snapOf(p);
+  const all=[{op:'check',table:'posts',id:p.id,rev:p._rev||''},{op:'upsert',table:'posts',rows:[postRow(p)]},...ops].map(o=>Object.assign(o,{unit}));
+  return {ops:all,done:revs=>{p._snap=snapNow;if(revs&&revs[p.id])p._rev=revs[p.id]}};
 }
+function gSnap(w){const s={};DB[w].tasks.forEach(t=>{if(!t.id)t.id=uid();s[t.id]=JSON.stringify(gRow(t))});return s}
+const gRow=t=>({id:t.id,pid:'',t:t.t,due:t.due,done:Y(t.done),doneAt:t.doneAt||'',auto:Y(t.auto)});
 
 /* ================= 서버 통신 · 저장 줄 ================= */
 async function api(action,body){
@@ -121,20 +139,28 @@ async function api(action,body){
 }
 const queue=new Map();let saving=false,saveErr=false,timer=null;
 function enqueue(key,w,opsFn){queue.set(key,{w,opsFn});saveErr=false;showSync();clearTimeout(timer);timer=setTimeout(flush,500)}
+let reloadAfter=false;
 async function flush(){
   if(saving||!queue.size)return;saving=true;showSync();
   const items=[...queue.entries()];queue.clear();
-  const byW={me:[],gh:[]};items.forEach(([k,it])=>byW[it.w].push(...it.opsFn()));
-  try{for(const w of ['me','gh'])if(byW[w].length)await api('batch',{who:w,ops:byW[w]});cacheData()}
+  const byW={me:[],gh:[]},dones=[];
+  items.forEach(([k,it])=>{const r=it.opsFn();const ops=Array.isArray(r)?r:(r.ops||[]);byW[it.w].push(...ops);if(r.done)dones.push({k,done:r.done})});
+  try{let conf=[],revs={};
+    for(const w of ['me','gh'])if(byW[w].length){const j=await api('batch',{who:w,ops:byW[w]});conf=conf.concat(j.conflicts||[]);Object.assign(revs,j.revs||{})}
+    dones.forEach(d=>{if(!conf.includes(d.k))d.done(revs)});if(conf.length)reloadAfter=true;cacheData()}
   catch(e){saveErr=true;items.forEach(([k,it])=>{if(!queue.has(k))queue.set(k,it)})}
-  saving=false;showSync();if(queue.size&&!saveErr)flush();
+  saving=false;showSync();
+  if(queue.size&&!saveErr){flush();return}
+  if(reloadAfter&&!queue.size){reloadAfter=false;await refresh(true);toast('다른 기기에서 바뀐 공고가 있어서 새로 불러왔어요. 방금 한 수정은 다시 해 주세요')}
 }
 function showSync(){const el=document.getElementById('sync');if(!el)return;
   if(saveErr){el.innerHTML='<button class="link-btn small" data-act="retry" style="color:var(--urgent)">저장 실패 · 다시 시도</button>';return}
   el.textContent=saving||queue.size?'저장 중…':'';}
 const dirty=p=>{if(!p)return;const w=owner(p);enqueue('p:'+p.id,w,()=>bundleOps(p))};
 const dirtyC=(p,c)=>{const w=owner(p);enqueue('c:'+c.id,w,()=>[{op:'upsert',table:'comments',rows:[cRow(p,c)]}])};
-const dirtyG=w=>{enqueue('g:'+w,w,()=>{DB[w].tasks.forEach(t=>{if(!t.id)t.id=uid()});return [{op:'replace',table:'tasks',key:'pid',value:'',rows:DB[w].tasks.map(t=>({id:t.id,pid:'',t:t.t,due:t.due,done:Y(t.done),doneAt:t.doneAt||'',auto:Y(t.auto)}))}]})};
+const dirtyG=w=>{enqueue('g:'+w,w,()=>{const S0=DB[w]._gsnap||{},now=gSnap(w),ops=[];const up=DB[w].tasks.filter(t=>S0[t.id]!==now[t.id]).map(gRow);
+  if(up.length)ops.push({op:'upsert',table:'tasks',rows:up});Object.keys(S0).forEach(id=>{if(!(id in now))ops.push({op:'remove',table:'tasks',key:'id',value:id})});
+  return {ops,done:()=>{DB[w]._gsnap=now}}})};
 const dirtyS=w=>{enqueue('s:'+w,w,()=>[{op:'upsert',table:'settings',rows:[{k:'jobs',v:JSON.stringify(DB[w].jobs)},{k:'inds',v:JSON.stringify(DB[w].inds)},{k:'auto',v:JSON.stringify(DB[w].auto)}]}])};
 function delRemote(p,w){const id=p.id;queue.delete('p:'+id);enqueue('d:'+id,w,()=>[{op:'remove',table:'posts',key:'id',value:id},...['qs','events','tasks','hist','comments'].map(t=>({op:'remove',table:t,key:'pid',value:id}))])}
 let raw={me:null,gh:null};

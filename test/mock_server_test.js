@@ -7,10 +7,10 @@ let calls=[];
 function server(body){const b=JSON.parse(body);calls.push(b.action);
  if(b.pw!=='0000')return {ok:false,error:'bad_password'};
  if(b.action==='loadAll')return {ok:true,data:JSON.parse(JSON.stringify(store)),usage:{used:0,limit:30,hasKey:true},sheets:{me:'https://docs.google.com/x',gh:'https://docs.google.com/y'}};
- if(b.action==='batch'){const T=store[b.who];b.ops.forEach(op=>{let rows=T[op.table];
+ if(b.action==='batch'){const T=store[b.who];b.ops.forEach(op=>{if(op.op==='check')return;let rows=T[op.table];
    if(op.op==='replace')T[op.table]=rows.filter(r=>r[op.key]!==String(op.value)).concat(op.rows.map(str));
    else if(op.op==='upsert'){const key=op.table==='settings'?'k':'id';op.rows.forEach(n=>{n=str(n);const i=rows.findIndex(r=>r[key]===n[key]);if(i>=0)rows[i]=Object.assign({},rows[i],n);else rows.push(n)})}
-   else if(op.op==='remove')T[op.table]=rows.filter(r=>r[op.key]!==String(op.value))});return {ok:true}}
+   else if(op.op==='remove')T[op.table]=rows.filter(r=>r[op.key]!==String(op.value))});return {ok:true,conflicts:[],revs:{}}}
  if(b.action==='extract')return {ok:true,usage:{used:1,limit:30,hasKey:true},data:{co:'테스트전자',job:'영업',role:'B2B 영업',type:'정규직',ind:'일반기업',loc:'서울',applyStart:'',dueKind:'확정',due:'2026-12-01T18:00',steps:['서류','면접'],events:[{d:'2026-12-10',k:'int',t:'1차 면접'}],qs:[{t:'지원 동기를 쓰시오.',n:800}],memo:'정규직 · 서울'}};
  return {ok:false,error:'unknown'}}
 function makeDom(){const dom=new JSDOM(html,{runScripts:'outside-only',pretendToBeVisual:true,url:'https://wizstar0919.github.io/job-planner/#s=https%3A%2F%2Fscript.google.com%2Fmacros%2Fs%2FX%2Fexec'});
