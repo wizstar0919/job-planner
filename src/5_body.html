@@ -631,8 +631,19 @@ function showPop(mark,pin){const p=S.open&&find(S.open);if(!p||!mark)return;cons
   const rt=el.querySelector('#rTxt');if(rt)rt.focus()}
 function hidePop(){const el=document.getElementById('cpop');if(el)el.hidden=true;S.pin=null;document.querySelectorAll('mark.on').forEach(m=>m.classList.remove('on'))}
 function markRead(p){if(!mine(p))return;p.comments.forEach(c=>{if(c.by!==S.me&&!c.read){c.read=true;dirtyC(p,c)}})}
+/* 브라우저·마우스 뒤로가기: 화면 이동, 공고 상세, 창 열기를 기록해 두고 뒤로가면 그 전 상태로 */
+let histKey=null,histPop=false;
+const navKey=()=>[S.view,S.open||'',S.dlg?'d':''].join('|');
+function histSync(){const k=navKey(),st={k,view:S.view,open:S.open||null,dlg:!!S.dlg};
+  if(histKey===null){histKey=k;try{history.replaceState(st,'')}catch(e){}return}
+  if(histPop||k===histKey)return;histKey=k;try{history.pushState(st,'')}catch(e){}}
+window.addEventListener('popstate',e=>{const st=e.state;if(!st||!S.me)return;histPop=true;
+  try{if(!st.dlg)S.dlg=null;
+    if((S.open||null)!==(st.open||null)){S.open=st.open&&find(st.open)?st.open:null;S.ed=null;S.delAsk=false;S.editQ=null;S.flash=null;try{hidePop()}catch(x){}}
+    if(st.view)S.view=st.view;histKey=st.k;render()}finally{histPop=false}});
 function renderLayer(){
   if(!S.me){layer.innerHTML=startHTML();return}
+  histSync();
   if(S.ed&&layer.querySelector('.sheet [data-f]'))syncEd();
   let h='';
   if(S.open){const p=find(S.open);if(p)h+=`<div class="scrim" data-act="close"></div><aside class="sheet" role="dialog" aria-label="공고 상세">${detailHTML(p)}</aside>`;else S.open=null}
