@@ -784,9 +784,16 @@ function tiles(dataUrl){return new Promise(res=>{const img=new Image();img.onloa
     c.getContext('2d').drawImage(img,0,y/sc,img.width,h/sc,0,0,W,h);out.push(c.toDataURL('image/jpeg',0.88));if(y+h>=H)break}
   res(out)};img.onerror=()=>res([dataUrl]);img.src=dataUrl})}
 const isUrl=s=>/^https?:\/\/\S+$/i.test(String(s||'').trim());
-function addImgUrl(u){u=String(u||'').trim();const A=S.add;if(!A)return;if(!isUrl(u)){toast('https:// 로 시작하는 이미지 주소를 넣어 주세요');return}
+/* 이미지 주소: 서버가 그림을 받아 오면 캡처처럼 잘라서 넣음 (긴 공고 이미지도 글자 크기 유지).
+   서버가 못 받으면 주소 그대로 두고 Claude가 직접 받아 보게 함 */
+async function addImgUrl(u){u=String(u||'').trim();const A=S.add;if(!A)return;if(!isUrl(u)){toast('https:// 로 시작하는 이미지 주소를 넣어 주세요');return}
   A.imgUrls=A.imgUrls||[];if(A.imgs.length+A.imgUrls.length>=MAX_IMGS){toast(`이미지는 ${MAX_IMGS}장까지 넣을 수 있어요`);return}
-  if(!A.imgUrls.includes(u))A.imgUrls.push(u);A.warn='';addDlg()}
+  A.warn='이미지 가져오는 중…';addDlg();
+  try{const j=await api('fetchImg',{url:u});if(S.add!==A)return;const ts=await tiles(`data:${j.type};base64,${j.data}`);let cut=false;
+    for(const t of ts){if(A.imgs.length+A.imgUrls.length>=MAX_IMGS){cut=true;break}A.imgs.push(t)}
+    A.warn=cut?`이미지가 길어서 앞부분 ${MAX_IMGS}조각까지만 넣었어요`:''}
+  catch(e){if(S.add!==A)return;if(!A.imgUrls.includes(u))A.imgUrls.push(u);A.warn='서버가 그림을 직접 못 받아서 주소로 넣어 뒀어요. 안 되면 캡처로 올려 주세요'}
+  addDlg()}
 async function pasteClip(){/* 휴대폰: 클립보드 읽기 (사파리는 [붙여넣기] 말풍선이 한 번 뜸) */
   try{if(!navigator.clipboard||!navigator.clipboard.read)throw 0;const items=await navigator.clipboard.read();const fs=[];let txt='';
     for(const it of items){const t=it.types.find(x=>x.startsWith('image/'));if(t){const bl=await it.getType(t);fs.push(new File([bl],'clip',{type:t}))}else if(it.types.includes('text/plain')){txt=await (await it.getType('text/plain')).text()}}
@@ -811,7 +818,8 @@ async function runExtract(){
       steps:(d.steps&&d.steps.length?d.steps:['서류']).join(' > '),link:input.url||'',relLink:'',events:(d.events||[]).filter(e=>/^\d{4}-\d{2}-\d{2}/.test(e.d)).map(e=>({d:e.d.slice(0,10),k:e.k,t:e.t})),qs:(d.qs||[]).map(q=>({t:q.t,n:q.n||0})),memo:d.memo||'',stage:'관심'}};
     A.lastForm=S.form;formDlg()}
   catch(e){if(S.add!==A)return;A.phase='input';if(e.code==='need_capture')A.tab='cap';if(e.code==='unreadable'&&e.usage){usage=e.usage;LS.set('usage',usage)}
-    A.warn=errMsg(e)+(e.code==='unreadable'&&e.detail?` (${e.detail})`:'');addDlg()}
+    let why='';if(e.code==='api_error'&&e.detail){try{why=JSON.parse(e.detail).error.message}catch(x){why=String(e.detail).slice(0,120)}}
+    A.warn=errMsg(e)+(e.code==='unreadable'&&e.detail?` (${e.detail})`:'')+(why?` · ${why}`:'');addDlg()}
 }
 
 /* ================= 달력 칸 맞추기: 칸 높이에 들어가는 만큼만 보이고 나머지는 +N ================= */

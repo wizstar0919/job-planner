@@ -46,6 +46,7 @@ function doPost(e) {
         sheets: { me: book_('me').getUrl(), gh: book_('gh').getUrl() } });
       case 'batch': return out_(batch_(who_(req.who), req.ops || []));
       case 'extract': return out_(extract_(req.input || {}));
+      case 'fetchImg': return out_(fetchImg_(req.url));
       default: return out_({ ok: false, error: 'unknown_action' });
     }
   } catch (err) {
@@ -180,6 +181,28 @@ function pageText_(url) {
     .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
     .replace(/[ \t]+/g, ' ').replace(/\n\s*\n+/g, '\n').trim();
   return (meta.join('\n') + '\n' + text).trim().slice(0, 60000);
+}
+
+/* 이미지 주소 → 서버가 대신 받아서 앱에 돌려줌 (앱이 잘라서 글자 크기를 지킨 채로 보내도록) */
+function fetchImg_(url) {
+  url = String(url || '');
+  if (!/^https?:\/\//i.test(url)) return { ok: false, error: 'img_fetch', detail: 'bad_url' };
+  try {
+    const r = UrlFetchApp.fetch(url, { muteHttpExceptions: true, followRedirects: true,
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36',
+                 'Accept': 'image/avif,image/webp,image/png,image/*,*/*;q=0.8', 'Referer': url.replace(/^(https?:\/\/[^\/]+).*$/, '$1/') } });
+    const code = r.getResponseCode();
+    if (code !== 200) return { ok: false, error: 'img_fetch', detail: 'http_' + code };
+    const blob = r.getBlob(), bytes = blob.getBytes();
+    let type = String(blob.getContentType() || '').split(';')[0].toLowerCase();
+    if (!/^image\//.test(type)) {
+      const b0 = bytes[0] & 255, b1 = bytes[1] & 255;
+      type = b0 === 0xFF && b1 === 0xD8 ? 'image/jpeg' : b0 === 0x89 && b1 === 0x50 ? 'image/png' : b0 === 0x47 ? 'image/gif' : b0 === 0x52 ? 'image/webp' : '';
+    }
+    if (!type) return { ok: false, error: 'img_fetch', detail: 'not_image' };
+    if (bytes.length > 15 * 1024 * 1024) return { ok: false, error: 'img_fetch', detail: 'too_big' };
+    return { ok: true, type: type, data: Utilities.base64Encode(bytes), size: bytes.length };
+  } catch (e) { return { ok: false, error: 'img_fetch', detail: String(e).slice(0, 120) }; }
 }
 
 function extract_(input) {
