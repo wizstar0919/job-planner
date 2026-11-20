@@ -12,7 +12,7 @@
  */
 
 const PEOPLE = { me: '민석', gh: '건희' };
-const MODEL = 'claude-opus-5-5';
+const MODEL_DEFAULT = 'claude-haiku-5-5'; // 공고 정리 모델. 바꾸려면 스크립트 속성 MODEL 에 모델 이름 (claude-sonnet-5-5 등)
 
 const SCHEMA = {
   posts: { tab: '공고', cols: [['id','id'],['co','회사'],['job','지원 직무'],['role','상세 직무명'],['type','유형'],['ind','업권'],['loc','근무지'],
@@ -258,18 +258,21 @@ function extract_(input) {
       memo: { type: 'string' }
     } };
 
+  // 비교 시험용: 정해 둔 모델 중에서만 바꿔 볼 수 있음
+  const MODEL = p.getProperty('MODEL') || MODEL_DEFAULT;
+  const model = ['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'].indexOf(input.model) >= 0 ? input.model : MODEL;
   const body = {
-    model: MODEL, max_tokens: 8000,
+    model: model, max_tokens: 8000,
     output_config: { effort: 'low', format: { type: 'json_schema', schema: schema } },
-    fallbacks: 'default',
     messages: [{ role: 'user', content: content }]
   };
+  if (model !== 'claude-haiku-5-5') body.fallbacks = 'default'; // Haiku는 거절 시 다른 모델로 넘기는 기능이 없음
   const call = (b, beta) => UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
     method: 'post', contentType: 'application/json', muteHttpExceptions: true,
     headers: Object.assign({ 'x-api-key': key, 'anthropic-version': '2026-10-21' }, beta ? { 'anthropic-beta': 'server-side-fallback-2026-07-01' } : {}),
     payload: JSON.stringify(b)
   });
-  let res = call(body, true);
+  let res = call(body, !!body.fallbacks);
   if (res.getResponseCode() === 400 && /fallback/i.test(res.getContentText())) { // 거절 대비 옵션이 안 맞으면 옵션 없이 다시
     delete body.fallbacks; res = call(body, false);
   }
