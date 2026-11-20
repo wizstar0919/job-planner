@@ -151,7 +151,7 @@ function errMsg(e){const c=e&&e.code;return {network:'인터넷 연결을 확인
 
 /* ================= 상태 · 도우미 ================= */
 const S={sideOff:LS.get('sideOff',false),me:null,who:null,view:'cal',boardCol:'작성중',fInd:'',fJob:'',bQ:'',bSort:'due',endOpen:{},calY:T0.getFullYear(),calM:T0.getMonth(),calSel:TODAY,calMode:'month',overlay:false,recQ:'',
-  open:null,ed:null,dlg:null,add:null,addDraft:null,form:null,delAsk:false,undo:null,editQ:null,sel:null,replyTo:null,showRes:{},flash:null,busy:false};
+  recFrom:'',recTo:'',recPreset:'all',open:null,ed:null,dlg:null,add:null,addDraft:null,form:null,delAsk:false,undo:null,editQ:null,sel:null,replyTo:null,showRes:{},flash:null,busy:false};
 const $=s=>document.querySelector(s);
 const app=$('#app'),main=$('#main'),layer=$('#layer');
 const other=w=>w==='me'?'gh':'me';
@@ -295,7 +295,7 @@ function homeHTML(){
   const soon=all.filter(x=>!x.t.done&&x.t.due&&diff(x.t.due)>0&&diff(x.t.due)<=7).sort((a,b)=>a.t.due.localeCompare(b.t.due));
   const open=posts.filter(isOpen);
   const over=open.filter(p=>p.dueKind==='확정'&&p.due&&diff(p.due)<0).sort((a,b)=>a.due.localeCompare(b.due));
-  const urg=open.filter(p=>p.dueKind==='확정'&&p.due&&diff(p.due)>=0&&diff(p.due)<=7).sort((a,b)=>a.due.localeCompare(b.due));
+  const urg=open.filter(p=>p.dueKind==='확정'&&p.due&&diff(p.due)>=0&&diff(p.due)<=2).sort((a,b)=>a.due.localeCompare(b.due));
   const unk=open.filter(p=>p.dueKind==='미확인');
   const up=[];posts.forEach(p=>(p.events||[]).forEach(e=>{const n=diff(e.d);if(n>=0&&n<=7)up.push({p,e,n})}));up.sort((a,b)=>a.n-b.n);
   const wait=posts.filter(p=>p.stage==='제출').sort((a,b)=>String(a.submitted).localeCompare(String(b.submitted)));
@@ -311,17 +311,13 @@ function homeHTML(){
   const dueCnt=over.length+urg.length;
   const upH=up.length?up.map(({p,e})=>rowOpen(p.id,'',`<span class="kind">${(KIND[e.k]||KIND.etc)[0]}</span><span class="grow"><div class="t">${esc(e.t)}</div><div class="s oneline">${md(e.d)} · ${esc(label(p))}</div></span><span class="chev">›</span>`)).join(''):`<div class="empty">앞으로 7일 동안 잡힌 전형 일정이 없어요</div>`;
   const waitH=wait.length?wait.map(p=>rowOpen(p.id,'',`<span class="grow"><div class="t oneline">${esc(label(p))}</div><div class="s">${p.submitted?md(p.submitted)+' 제출 · '+(-diff(p.submitted))+'일째':'결과 대기'}</div></span><span class="chev">›</span>`)).join(''):`<div class="empty">결과를 기다리는 공고가 없어요</div>`;
-  let partH='';
-  if(!ro()){const o=other(S.me),items=[];
-    vis(o).forEach(p=>{if(isOpen(p)&&p.dueKind==='확정'&&p.due){const n=diff(p.due);if(n>=0&&n<=7)items.push({n,d:p.due,t:`${KIND.due[0]} ${label(p)} 마감`,p})}
-      (p.events||[]).forEach(e=>{const n=diff(e.d);if(n>=0&&n<=7)items.push({n,d:e.d,t:`${(KIND[e.k]||KIND.etc)[0]} ${label(p)} ${e.t}`,p})})});
-    items.sort((a,b)=>a.n-b.n);
-    partH=`<section class="sec"><h3>👀 ${esc(nm(o))} 이번 주 <span class="count">${items.length}</span></h3><div class="list">${items.length?items.map(x=>rowOpen(x.p.id,'partner',`<span class="dd sm ${ddC(x.n)}">${ddL(x.n)}</span><span class="grow"><div class="t oneline">${esc(x.t)}</div><div class="s">${md(x.d)}</div></span>`)).join(''):`<div class="empty">${esc(nm(o))} 님의 이번 주 일정이 없어요</div>`}</div></section>`}
+  const pre=posts.filter(p=>p.stage==='관심').sort((a,b)=>String((a.dueKind==='확정'&&a.due)||'9999').localeCompare(String((b.dueKind==='확정'&&b.due)||'9999')));
+  const partH=`<section class="sec"><h3>시작 전 <span class="count">${pre.length}</span></h3><div class="list">${pre.length?pre.map(p=>rowOpen(p.id,'',`<span class="grow"><div class="t oneline" title="${esc(full(p))}">${esc(label(p))}</div><div class="s">${esc(dueText(p))}</div></span><span class="chev">›</span>`)).join(''):'<div class="empty">시작 전 공고가 없어요</div>'}</div></section>`;
   return `${roBanner()}<div class="view-head"><h2>${d.getMonth()+1}월 ${d.getDate()}일 (${WD[d.getDay()]})</h2><span class="muted">${esc(nm(w))} · 오늘 남은 할 일 ${left}개</span></div>
   <div class="home"><div class="stack">
    <section class="sec"><h3>오늘 할 일 <span class="count">${left}</span></h3><div class="list">${tkH}</div></section>
    ${nc.length?`<section class="sec"><h3>새 댓글 <span class="count">${nc.length}</span></h3><div class="list">${ncH}</div></section>`:''}
-   <section class="sec"><h3>마감 임박 <span class="count">${dueCnt}</span></h3><div class="list">${dueCnt?overH+urgH:'<div class="empty">7일 안에 마감되는 공고가 없어요</div>'}</div></section>
+   <section class="sec"><h3>마감 임박 <span class="count">${dueCnt}</span></h3><div class="list">${dueCnt?overH+urgH:'<div class="empty">2일 안에 마감되는 공고가 없어요</div>'}</div></section>
    <section class="sec"><h3>앞으로 7일 전형 일정 <span class="count">${up.length}</span></h3><div class="list">${upH}</div></section>
   </div><div class="stack">
    <section class="sec"><h3>결과 대기 <span class="count">${wait.length}</span></h3><div class="list">${waitH}</div></section>
@@ -352,19 +348,31 @@ function boardHTML(){
 }
 
 /* ================= S7 기록 ================= */
-function recRows(){const q=S.recQ.trim().toLowerCase();return vis(S.who).filter(p=>p.submitted||p.stage==='종료').filter(p=>!q||(p.co+p.role+p.ind+p.job).toLowerCase().includes(q)).sort((a,b)=>String(b.submitted).localeCompare(String(a.submitted)))
+const recDate=p=>p.submitted||String(p.due||'').slice(0,10)||p.created||'';
+function inRange(p){const d=recDate(p);if(!S.recFrom&&!S.recTo)return true;if(!d)return false;return (!S.recFrom||d>=S.recFrom)&&(!S.recTo||d<=S.recTo)}
+function recPreset(v){const t=dt(TODAY);S.recPreset=v;
+  if(v==='all'){S.recFrom='';S.recTo=''}
+  else if(v==='month'){S.recFrom=iso(new Date(t.getFullYear(),t.getMonth(),1));S.recTo=iso(new Date(t.getFullYear(),t.getMonth()+1,0))}
+  else if(v==='3m'){S.recFrom=addDays(TODAY,-90);S.recTo=TODAY}
+  else if(v==='year'){S.recFrom=t.getFullYear()+'-01-01';S.recTo=t.getFullYear()+'-12-31'}}
+function recRows(){const q=S.recQ.trim().toLowerCase();return vis(S.who).filter(p=>p.submitted||p.stage==='종료').filter(inRange).filter(p=>!q||(p.co+p.role+p.ind+p.job).toLowerCase().includes(q)).sort((a,b)=>String(b.submitted).localeCompare(String(a.submitted)))
   .map(p=>`<tr data-act="open" data-id="${p.id}"><td class="num">${p.submitted?p.submitted.slice(2).replace(/-/g,'.'):'-'}</td><td><b>${esc(shortCo(p.co))}</b> · ${esc(shortRole(p.role))}</td><td>${esc(p.job)}</td><td>${esc(p.ind)}</td><td>${p.stage==='종료'?resPill(p):p.stage==='제출'?'<span class="pill mute">⏳ 결과 대기</span>':'<span class="pill">'+esc(COLNAME[p.stage]||'전형')+'</span>'}</td></tr>`).join('')||'<tr><td colspan="5" class="muted">아직 없어요</td></tr>'}
 function recHTML(){
-  const ps=vis(S.who),sub=ps.filter(p=>p.submitted||(p.stage==='종료'&&p.result!=='포기/무응답'));
+  const all=vis(S.who),ps=all.filter(inRange),sub=ps.filter(p=>p.submitted||(p.stage==='종료'&&p.result!=='포기/무응답'));
+  const presets=[['all','전체'],['month','이번 달'],['3m','최근 3개월'],['year','올해']];
+  const period=`<div class="toolbar period" style="margin-bottom:14px"><div class="seg">${presets.map(([k,n])=>`<button class="${S.recPreset===k?'on':''}" data-act="rec-preset" data-v="${k}">${n}</button>`).join('')}</div>
+   <input type="date" class="search" style="max-width:160px" data-ch="recFrom" value="${esc(S.recFrom)}" aria-label="시작일"><span class="muted">~</span><input type="date" class="search" style="max-width:160px" data-ch="recTo" value="${esc(S.recTo)}" aria-label="종료일">
+   <span class="muted small">기준: 제출일 (없으면 마감일) · ${ps.length}건</span></div>`;
   const decided=sub.filter(p=>p.stage!=='제출');
   const passed=sub.filter(p=>isProc(p)||(p.stage==='종료'&&(p.result==='최종합격'||p.result==='인재풀'||(p.failAt&&p.failAt!=='서류'))));
   const rate=decided.length?Math.round(passed.length/decided.length*100):0;
   const cnt=f=>{const o={};sub.forEach(p=>{const k=f(p);if(k)o[k]=(o[k]||0)+1});return o};
   const fail={};ps.filter(p=>p.stage==='종료'&&p.failAt).forEach(p=>fail[p.failAt]=(fail[p.failAt]||0)+1);
   const bars=o=>{const e=Object.entries(o).sort((a,b)=>b[1]-a[1]).slice(0,6);const mx=Math.max(1,...e.map(x=>x[1]));return e.length?`<div class="bars">${e.map(([k,v])=>`<div class="bar"><span class="oneline">${esc(k)}</span><span class="track"><span class="fill" style="width:${v/mx*100}%"></span></span><span class="num">${v}</span></div>`).join('')}</div>`:'<div class="muted small">아직 없어요</div>'};
-  const prog=COLS.filter(c=>c[0]!=='종료').map(([k,name,v])=>`<button data-act="goto-col" data-v="${k}"><span><i class="dot" style="--c:var(${v})"></i>${name}</span><b>${ps.filter(p=>p.stage===k).length}</b></button>`).join('');
+  const prog=COLS.filter(c=>c[0]!=='종료').map(([k,name,v])=>`<button data-act="goto-col" data-v="${k}"><span><i class="dot" style="--c:var(${v})"></i>${name}</span><b>${all.filter(p=>p.stage===k).length}</b></button>`).join('');
   return `${roBanner()}<div class="view-head"><h2>${esc(nm(S.who))}의 지원 기록</h2></div>
   <section class="sec"><h3>지금 진행 현황</h3><div class="prog">${prog}</div></section>
+  ${period}
   <div class="stats"><div class="stat"><div class="k">지원한 공고</div><div class="v">${sub.length}<small>건</small></div><div class="k">결과 대기 ${ps.filter(p=>p.stage==='제출').length}건</div></div>
    <div class="stat"><div class="k">서류 통과율</div><div class="v">${rate}<small>% (${passed.length}/${decided.length})</small></div><div class="k">서류 결과가 나온 공고 기준</div></div>
    <div class="stat"><div class="k">떨어지거나 그만둔 단계</div>${bars(fail)}</div></div>
@@ -687,6 +695,7 @@ document.addEventListener('click',e=>{
   const p=S.open?find(S.open):null;
   switch(a){
     case 'enter':enter(v);break;
+    case 'rec-preset':recPreset(v);render();break;
     case 'side-tg':S.sideOff=!S.sideOff;LS.set('sideOff',S.sideOff);render();break;
     case 'retry':saveErr=false;flush();break;
     case 'to-start':S.me=null;S.who=null;S.open=null;S.dlg=null;render();break;
@@ -789,6 +798,7 @@ document.addEventListener('change',e=>{
   if(c==='fjob'){S.fJob=el.value;$('#boardBody').innerHTML=boardBody()}
   if(c==='bsort'){S.bSort=el.value;$('#boardBody').innerHTML=boardBody()}
   if(c==='overlay'){S.overlay=el.checked;render()}
+  if(c==='recFrom'||c==='recTo'){S[c]=el.value;S.recPreset='custom';render()}
 });
 document.addEventListener('input',e=>{
   const el=e.target;
