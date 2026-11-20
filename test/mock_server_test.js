@@ -31,7 +31,10 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));const log=[];const ck=(n,c)=>lo
  click('[data-act="form-save"]');await sleep(800);
  ck('saved to server posts',store.me.posts.length===1&&store.me.posts[0].co==='테스트전자');
  ck('qs/events/tasks saved',store.me.qs.length===1&&store.me.events.length===1&&store.me.tasks.some(t=>t.t==='제출 전 최종 점검'));
- click('[data-act="edit-a"][data-i="0"]');d.querySelector('#ansTa').value='제 지원 동기는 이렇습니다.';click('[data-act="save-a"]');await sleep(800);
+ ck('view mode has no inputs',!d.querySelector('.sheet #evT')&&!d.querySelector('.sheet [data-f]'));
+ click('[data-act="edit"]');ck('edit mode inline',!!d.querySelector('.sheet #fCo')&&!!d.querySelector('.sheet #evT'));
+ d.querySelector('.sheet [data-q="0"][data-qf="a"]').value='제 지원 동기는 이렇습니다.';d.querySelector('.sheet #fLoc').value='판교';click('[data-act="ed-save"]');await sleep(800);
+ ck('edit saved loc',store.me.posts[0].loc==='판교');
  ck('answer saved',store.me.qs[0].a==='제 지원 동기는 이렇습니다.'&&store.me.qs[0].st==='초안');
  click('[data-act="submit-done"]');await sleep(800);ck('stage 제출 + 결과 확인 task',store.me.posts[0].stage==='제출'&&store.me.tasks.some(t=>t.t==='결과 확인'));
  click('[data-act="close"]');
@@ -51,7 +54,7 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));const log=[];const ck=(n,c)=>lo
  d.querySelector('#pwIn').value='0000';click('.pcard[data-v="me"]');await sleep(50);
  click('.nav-btn[data-v="home"]');ck('민석 home new comment',d.querySelector('#main').textContent.includes('새 댓글'));
  click('[data-act="open-c"]');await sleep(800);ck('marked read',store.me.comments[0].read==='Y');
- click('[data-act="close"]');click('.nav-btn[data-v="board"]');click(d.querySelector('.card'));console.log('cards',d.querySelectorAll('.card').length,'sheet',!!d.querySelector('.sheet'),'delbtn',!!d.querySelector('[data-act="del"]'));click('[data-act="del"]');console.log('yes',!!d.querySelector('[data-act="del-yes"]'));click('[data-act="del-yes"]');await sleep(800);
+ click('[data-act="close"]');click('.nav-btn[data-v="board"]');click(d.querySelector('.card'));console.log('cards',d.querySelectorAll('.card').length,'sheet',!!d.querySelector('.sheet'),'delbtn',!!d.querySelector('[data-act="del"]'));click('[data-act="edit"]');click('[data-act="del"]');console.log('yes',!!d.querySelector('[data-act="del-yes"]'));click('[data-act="del-yes"]');await sleep(800);
  console.log(JSON.stringify({p:store.me.posts.length,q:store.me.qs.length,c:store.me.comments.length,t:store.me.tasks.map(x=>x.t),h:store.me.hist.length,sheet:!!d.querySelector(".sheet"),del:!!d.querySelector("[data-act=del-yes]")}));ck("deleted everywhere",store.me.posts.length===0&&store.me.qs.length===0&&store.me.comments.length===0&&store.me.tasks.length===0);
 }catch(e){errs.push('TEST '+e.stack)}
  console.log(log.join('\n'));console.log('calls:',calls.join(','));console.log('ERRORS:',errs.length?errs:'none');process.exit(0)})();

@@ -601,7 +601,7 @@ function errMsg(e){const c=e&&e.code;return {network:'인터넷 연결을 확인
 
 /* ================= 상태 · 도우미 ================= */
 const S={me:null,who:null,view:'cal',boardCol:'작성중',fInd:'',fJob:'',bQ:'',bSort:'due',endOpen:{},calY:T0.getFullYear(),calM:T0.getMonth(),calSel:TODAY,calMode:'month',overlay:false,recQ:'',
-  open:null,dlg:null,add:null,addDraft:null,form:null,delAsk:false,undo:null,editQ:null,sel:null,replyTo:null,showRes:{},flash:null,busy:false};
+  open:null,ed:null,dlg:null,add:null,addDraft:null,form:null,delAsk:false,undo:null,editQ:null,sel:null,replyTo:null,showRes:{},flash:null,busy:false};
 const $=s=>document.querySelector(s);
 const app=$('#app'),main=$('#main'),layer=$('#layer');
 const other=w=>w==='me'?'gh':'me';
@@ -843,42 +843,92 @@ function qCmts(p,cs,lost,placed,key){
 }
 function qBlock(p,q,i,r){
   const cs=p.comments.filter(c=>c.qi===i);const len=q.a.replace(/\n/g,'').length;
-  const editing=S.editQ&&S.editQ.pid===p.id&&S.editQ.qi===i;
   const {h,lost,placed}=hl(q.a,cs);
-  const statusH=r?`<span class="pill ${q.st==='제출본'?'ok':'mute'}">${q.st}${q.lock?' 🔒':''}</span>`:`<select class="mini-sel" data-ch="qst" data-i="${i}" aria-label="답변 상태">${QST.map(s=>`<option ${q.st===s?'selected':''}>${s}</option>`).join('')}</select>${q.lock?' 🔒':''}`;
-  const btn=r||editing?'':q.lock?`<button class="btn sm" data-act="unlock" data-i="${i}">잠금 풀기</button>`:`<button class="btn sm" data-act="edit-a" data-i="${i}">${q.a?'수정':'답변 쓰기'}</button>`;
   return `<div class="q" data-qi="${i}"><p><b>${i+1}.</b> ${esc(q.t)} <span class="muted small">${q.n?'· '+q.n.toLocaleString()+'자':''}</span></p>
-   ${editing?`<textarea class="ans-ta" id="ansTa" aria-label="${i+1}번 답변">${esc(q.a)}</textarea><div class="qbar"><span class="cnt" id="ansCnt">${len.toLocaleString()} / ${q.n?q.n.toLocaleString():'-'}자</span><span class="sp"><button class="btn sm" data-act="cancel-a">취소</button><button class="btn sm primary" data-act="save-a" data-i="${i}">저장</button></span></div>`
-     :`<div class="ans ${q.a?'':'empty-a'}" data-pid="${p.id}" data-qi="${i}">${q.a?h:'아직 답변이 없어요'}</div>
-       <div class="qbar"><span class="cnt ${q.n&&len>q.n?'over':''}">${len.toLocaleString()} / ${q.n?q.n.toLocaleString():'-'}자</span>${q.a?'<span>· 문장을 드래그하면 댓글을 달 수 있어요</span>':''}<span class="sp">${statusH}${btn}</span></div>`}
+   <div class="ans ${q.a?'':'empty-a'}" data-pid="${p.id}" data-qi="${i}">${q.a?h:'아직 답변이 없어요'+(r?'':' · [정보 수정]에서 쓸 수 있어요')}</div>
+   <div class="qbar"><span class="cnt ${q.n&&len>q.n?'over':''}">${len.toLocaleString()} / ${q.n?q.n.toLocaleString():'-'}자</span>${q.a?'<span>· 문장을 드래그하면 댓글을 달 수 있어요</span>':''}<span class="sp"><span class="pill ${q.st==='제출본'?'ok':'mute'}">${q.st}${q.lock?' 🔒':''}</span></span></div>
    ${cs.length?qCmts(p,cs,lost,placed,p.id+':'+i):''}</div>`;
+}
+/* 정보 수정 모드: 문항·답변 편집 */
+function qEdit(q,i){
+  const len=(q.a||'').replace(/\n/g,'').length;
+  return `<div class="qe"><div class="qr"><b>${i+1}번 문항</b><span style="margin-left:auto"></span><button class="x" data-act="ed-rm-q" data-i="${i}">문항 빼기 ✕</button></div>
+   <textarea data-q="${i}" data-qf="t" aria-label="문항 ${i+1} 원문" style="min-height:52px">${esc(q.t)}</textarea>
+   <div class="qr">글자 수 제한 <input type="number" min="0" step="50" data-q="${i}" data-qf="n" value="${q.n||0}" aria-label="문항 ${i+1} 글자 수">자
+    <span style="margin-left:auto">상태</span><select class="mini-sel" data-q="${i}" data-qf="st" aria-label="답변 상태">${QST.map(s=>`<option ${q.st===s?'selected':''}>${s}</option>`).join('')}</select></div>
+   ${q.lock?`<div class="ans">${esc(q.a)}</div><div class="qr"><span>🔒 제출본이라 잠겨 있어요</span><button class="btn sm" style="margin-left:auto" data-act="ed-unlock" data-i="${i}">잠금 풀기</button></div>`
+     :`<textarea class="ans-ta" data-q="${i}" data-qf="a" aria-label="${i+1}번 답변" placeholder="답변을 쓰거나 붙여넣어 주세요">${esc(q.a||'')}</textarea><div class="qr"><span class="cnt" data-cnt="${i}">${len.toLocaleString()} / ${q.n?Number(q.n).toLocaleString():'-'}자</span></div>`}
+  </div>`;
+}
+function edInfo(v){
+  const jobs=DB[S.me].jobs;
+  return `<div class="edform">
+   <div class="f2"><div class="field"><label for="fCo">회사</label><input id="fCo" data-f="co" value="${esc(v.co)}"></div>
+    <div class="field"><label for="fShort">달력 표시 이름 (선택)</label><input id="fShort" data-f="short" value="${esc(v.short||'')}" placeholder="비우면 회사명 앞 4글자"></div></div>
+   <div class="f2"><div class="field"><label for="fJob">지원 직무</label><select id="fJob" data-f="job"><option value=""></option>${jobs.map(j=>`<option ${v.job===j?'selected':''}>${esc(j)}</option>`).join('')}${v.job&&v.job!=='__new'&&!jobs.includes(v.job)?`<option selected>${esc(v.job)}</option>`:''}<option value="__new" ${v.job==='__new'?'selected':''}>+ 직접 추가</option></select>${v.job==='__new'?'<input id="fJobNew" placeholder="새 직무 이름" style="margin-top:4px">':''}</div>
+    <div class="field"><label for="fRole">상세 직무명</label><input id="fRole" data-f="role" value="${esc(v.role)}"></div></div>
+   <div class="f2"><div class="field"><label for="fType">유형</label><select id="fType" data-f="type"><option value=""></option>${TYPES.map(o=>`<option ${v.type===o?'selected':''}>${o}</option>`).join('')}</select></div>
+    <div class="field"><label for="fInd">업권</label><select id="fInd" data-f="ind"><option value=""></option>${INDS.map(o=>`<option ${v.ind===o?'selected':''}>${o}</option>`).join('')}</select></div></div>
+   <div class="f2"><div class="field"><label for="fLoc">근무지</label><input id="fLoc" data-f="loc" value="${esc(v.loc)}"></div><div class="field"><label for="fAs">접수 시작 (선택)</label><input id="fAs" type="date" data-f="applyStart" value="${esc(v.applyStart)}"></div></div>
+   <div class="f2"><div class="field"><label for="fDk">마감 종류</label><select id="fDk" data-f="dueKind">${DUEKIND.map(d=>`<option value="${d[0]}" ${v.dueKind===d[0]?'selected':''}>${d[1]}</option>`).join('')}</select></div>
+    ${v.dueKind==='확정'?`<div class="field ${S.ed.focus?'focus':''}"><label for="fDue">마감 일시</label><input id="fDue" type="datetime-local" data-f="due" value="${esc(v.due)}"></div>`:v.dueKind==='미확인'?`<div class="field ${S.ed.focus?'focus':''}"><label for="fRecheck">재확인 날짜</label><input id="fRecheck" type="date" data-f="recheck" value="${esc(v.recheck)}"></div>`:'<div></div>'}</div>
+   <div class="f2"><div class="field"><label for="fStage">단계</label><select id="fStage" data-f="stage">${COLS.map(c=>`<option value="${c[0]}" ${v.stage===c[0]?'selected':''}>${c[1]}</option>`).join('')}</select></div>
+    <div class="field"><label for="fSteps">전형 절차 ( > 로 구분)</label><input id="fSteps" data-f="steps" value="${esc(v.steps)}"></div></div>
+   <div class="f2"><div class="field"><label for="fLink">공고 주소</label><input id="fLink" data-f="link" value="${esc(v.link)}" placeholder="https://"></div><div class="field"><label for="fRel">관련 자료 링크 (선택)</label><input id="fRel" data-f="relLink" value="${esc(v.relLink)}"></div></div>
+   <div class="field"><label for="fMemo">비고</label><textarea id="fMemo" data-f="memo" style="min-height:70px">${esc(v.memo)}</textarea></div>
+  </div>`;
 }
 function detailHTML(p){
   const r=!mine(p);
+  const ed=!r&&S.ed&&S.ed.pid===p.id?S.ed.v:null;
   const evs=evsOf(p).sort((a,b)=>a.d.localeCompare(b.d));
   const pcs=p.comments.filter(c=>c.qi<0||c.qi>=p.qs.length);
   const dueBit=p.stage==='종료'?resPill(p):(p.dueKind==='확정'&&p.due)&&isOpen(p)?`<span class="dd ${ddC(diff(p.due))}">${diff(p.due)<0?'마감 지남':ddL(diff(p.due))}</span><span class="muted">${esc(dueText(p))}</span>`:p.submitted?`<span class="muted">${md(p.submitted)} 제출</span>`:`<span class="muted">${esc(dueText(p))}</span>`;
-  return `<div class="sheet-h"><button class="icon-btn" data-act="close" aria-label="닫기">←</button><h3>${r?'👀 '+esc(nm(owner(p)))+' · ':''}공고 상세</h3>${r?'':'<button class="btn sm" data-act="edit">정보 수정</button>'}</div>
+  const headBtns=r?'':ed?'<button class="btn sm" data-act="ed-cancel">취소</button><button class="btn sm primary" data-act="ed-save">저장</button>':'<button class="btn sm" data-act="edit">정보 수정</button>';
+  return `<div class="sheet-h"><button class="icon-btn" data-act="close" aria-label="닫기">←</button><h3>${r?'👀 '+esc(nm(owner(p)))+' · ':''}${ed?'정보 수정':'공고 상세'}</h3>${headBtns}</div>
   <div class="sheet-b">
-   <div class="blk sum"><div class="co">${esc(p.co)}</div><div class="muted">${[p.job,p.role,p.type,p.ind,p.loc].filter(Boolean).map(esc).join(' · ')}</div>
-    <div class="meta">${r?`<span class="pill">${COLNAME[p.stage]}</span>`:`<select class="stage-sel" data-ch="stage" aria-label="단계">${COLS.map(c=>`<option value="${c[0]}" ${p.stage===c[0]?'selected':''}>${c[1]}</option>`).join('')}</select>`}${dueBit}</div>
+   ${ed?`<div class="blk">${edInfo(ed)}</div>`:`<div class="blk sum"><div class="co">${esc(p.co)}</div><div class="muted">${[p.job,p.role,p.type,p.ind,p.loc].filter(Boolean).map(esc).join(' · ')}</div>
+    <div class="meta"><span class="pill">${COLNAME[p.stage]}</span>${dueBit}</div>
     <div class="links">${p.link?`<a class="link-btn" href="${esc(p.link)}" target="_blank" rel="noopener">공고 열기 ↗</a>`:''}${p.relLink?`<a class="link-btn" href="${esc(p.relLink)}" target="_blank" rel="noopener">관련 자료 ↗</a>`:''}</div>
-    ${!r&&isOpen(p)?`<button class="btn primary block" data-act="submit-done">제출 완료</button>`:''}</div>
-   <div class="blk"><div class="blk-h">전형 ${!r&&p.stage!=='종료'?'<button class="btn sm" data-act="step-menu">현재 전형 변경</button>':''}</div><div class="steps">${stepsH(p)}</div></div>
-   <div class="blk"><div class="blk-h">자소서 문항 · 답변 <span class="muted">${p.qs.length?`제출본 ${p.qs.filter(q=>q.st==='제출본').length}/${p.qs.length}`:''}</span></div>${p.qs.map((q,i)=>qBlock(p,q,i,r)).join('')||'<div class="muted small">문항이 없어요'+(r?'':' · [정보 수정]에서 추가할 수 있어요')+'</div>'}</div>
+    ${!r&&isOpen(p)?`<button class="btn primary block" data-act="submit-done">제출 완료</button>`:''}</div>`}
+   <div class="blk"><div class="blk-h">전형 ${ed&&p.stage!=='종료'?'<button class="btn sm" data-act="step-menu">현재 전형 변경</button>':''}</div><div class="steps">${stepsH(p)}</div></div>
+   <div class="blk"><div class="blk-h">일정 <span class="count">${evs.length}</span></div>
+    ${evs.length?evs.map(e=>`<div class="li"><span>${(KIND[e.k]||KIND.etc)[0]}</span><span class="num">${md(e.d)}</span><span class="grow">${esc(e.t)}</span>${ed&&e.id?`<button class="x" data-act="rm-pev" data-e="${e.id}" aria-label="일정 지우기">✕</button>`:''}</div>`).join(''):'<div class="muted small">등록된 일정이 없어요</div>'}
+    ${ed?`<div class="inline"><input type="date" id="evD" value="${TODAY}" aria-label="날짜"><select id="evK" aria-label="종류">${['apt','int','ann','etc'].map(k=>`<option value="${k}">${KIND[k][0]} ${KIND[k][1]}</option>`).join('')}</select><input type="text" id="evT" placeholder="내용 (예: 1차 면접 14:00)"><button class="btn sm" data-act="add-ev">추가</button></div>`:''}</div>
+   <div class="blk"><div class="blk-h">할 일 <span class="count">${p.tasks.filter(t=>!t.done).length}</span></div>
+    ${p.tasks.map((t,i)=>`<div class="li ${t.done?'done':''}"><input type="checkbox" class="chk" data-ch="task" data-k="${p.id}:${i}" ${t.done?'checked':''} ${r?'disabled':''} aria-label="완료"><span class="grow t">${esc(t.t)}${t.auto?' <span class="pill mute">자동</span>':''}</span><span class="muted num">${t.due?md(t.due):''}</span>${ed?`<button class="x" data-act="rm-task" data-i="${i}" aria-label="할 일 지우기">✕</button>`:''}</div>`).join('')||'<div class="muted small">할 일이 없어요</div>'}
+    ${ed?`<div class="inline"><input type="text" id="tkT" placeholder="할 일 (예: 2번 문항 수정)"><input type="date" id="tkD" value="${TODAY}" aria-label="기한"><button class="btn sm" data-act="add-task">추가</button></div>`:''}</div>
+   ${!ed&&p.memo?`<div class="blk"><div class="blk-h">비고</div><div style="white-space:pre-wrap">${esc(p.memo)}</div></div>`:''}
    <div class="blk"><div class="blk-h">공고 댓글 <span class="count">${pcs.filter(c=>!c.resolved).length}</span></div>${pcs.length?cmtList(p,pcs,[],p.id+':p'):''}
     <div class="inline"><input type="text" id="pcTxt" placeholder="${r?esc(nm(owner(p)))+' 님에게 의견 남기기':'메모나 의견 남기기'}"><button class="btn sm" data-act="add-pc">등록</button></div></div>
-   <div class="blk"><div class="blk-h">일정 <span class="count">${evs.length}</span></div>
-    ${evs.length?evs.map(e=>`<div class="li"><span>${(KIND[e.k]||KIND.etc)[0]}</span><span class="num">${md(e.d)}</span><span class="grow">${esc(e.t)}</span>${!r&&e.id?`<button class="x" data-act="rm-pev" data-e="${e.id}" aria-label="일정 지우기">✕</button>`:''}</div>`).join(''):'<div class="muted small">등록된 일정이 없어요</div>'}
-    ${r?'':`<div class="inline"><input type="date" id="evD" value="${TODAY}" aria-label="날짜"><select id="evK" aria-label="종류">${['apt','int','ann','etc'].map(k=>`<option value="${k}">${KIND[k][0]} ${KIND[k][1]}</option>`).join('')}</select><input type="text" id="evT" placeholder="내용 (예: 1차 면접 14:00)"><button class="btn sm" data-act="add-ev">추가</button></div>`}</div>
-   <div class="blk"><div class="blk-h">할 일 <span class="count">${p.tasks.filter(t=>!t.done).length}</span></div>
-    ${p.tasks.map((t,i)=>`<div class="li ${t.done?'done':''}"><input type="checkbox" class="chk" data-ch="task" data-k="${p.id}:${i}" ${t.done?'checked':''} ${r?'disabled':''} aria-label="완료"><span class="grow t">${esc(t.t)}${t.auto?' <span class="pill mute">자동</span>':''}</span><span class="muted num">${t.due?md(t.due):''}</span>${r?'':`<button class="x" data-act="rm-task" data-i="${i}" aria-label="할 일 지우기">✕</button>`}</div>`).join('')||'<div class="muted small">할 일이 없어요</div>'}
-    ${r?'':`<div class="inline"><input type="text" id="tkT" placeholder="할 일 (예: 2번 문항 수정)"><input type="date" id="tkD" value="${TODAY}" aria-label="기한"><button class="btn sm" data-act="add-task">추가</button></div>`}</div>
-   ${p.memo?`<div class="blk"><div class="blk-h">비고</div><div style="white-space:pre-wrap">${esc(p.memo)}</div></div>`:''}
    <div class="blk"><div class="blk-h">이력</div><div class="hist">${p.hist.slice().reverse().map(h=>`<div><span class="num">${String(h.d).slice(5,10).replace('-','/')}</span>${esc(h.t)}</div>`).join('')}</div></div>
-   ${r?'':`<div class="blk">${S.delAsk?`<div class="note bad">이 공고와 일정·할 일·문항·답변·댓글이 모두 지워져요.<div class="inline" style="margin-top:8px"><button class="btn sm danger" data-act="del-yes">삭제</button><button class="btn sm" data-act="del-no">취소</button></div></div>`:`<button class="btn sm danger" style="align-self:flex-start" data-act="del">공고 삭제</button>`}</div>`}
+   <div class="blk"><div class="blk-h">자소서 문항 · 답변 <span class="muted">${p.qs.length?`제출본 ${p.qs.filter(q=>q.st==='제출본').length}/${p.qs.length}`:''}</span></div>
+    ${ed?ed.qs.map((q,i)=>qEdit(q,i)).join('')+'<button class="btn sm" style="align-self:flex-start" data-act="ed-q-add">+ 문항 추가</button>'
+       :(p.qs.map((q,i)=>qBlock(p,q,i,r)).join('')||'<div class="muted small">문항이 없어요'+(r?'':' · [정보 수정]에서 추가할 수 있어요')+'</div>')}</div>
+   ${ed?`<div class="blk"><div class="inline" style="justify-content:flex-end"><button class="btn" data-act="ed-cancel">취소</button><button class="btn primary" data-act="ed-save">저장</button></div>
+    ${S.delAsk?`<div class="note bad">이 공고와 일정·할 일·문항·답변·댓글이 모두 지워져요.<div class="inline" style="margin-top:8px"><button class="btn sm danger" data-act="del-yes">삭제</button><button class="btn sm" data-act="del-no">취소</button></div></div>`:`<button class="btn sm danger" style="align-self:flex-start" data-act="del">공고 삭제</button>`}</div>`:''}
    <div class="selbar" id="selbar" hidden><span id="selTxt"></span><button data-act="sel-c">💬 댓글</button></div>
   </div>`;
+}
+function edStart(p,focus){S.ed={pid:p.id,v:fromPost(p),focus:!!focus};S.delAsk=false;hidePop()}
+function syncEd(){if(!S.ed)return;const v=S.ed.v;
+  document.querySelectorAll('.sheet [data-f]').forEach(el=>{v[el.dataset.f]=el.value});
+  const jn=document.getElementById('fJobNew');if(jn)v._jobNew=jn.value;
+  document.querySelectorAll('.sheet [data-q]').forEach(el=>{const q=v.qs[+el.dataset.q];if(!q)return;const f=el.dataset.qf;if(f==='n')q.n=Math.max(0,parseInt(el.value,10)||0);else q[f]=el.value})}
+function edSave(){
+  syncEd();const p=find(S.ed.pid),v=S.ed.v;if(!p){S.ed=null;return}
+  if(!v.co.trim()){toast('회사 이름은 꼭 넣어 주세요');return}
+  if(v.dueKind==='확정'&&!v.due){toast('마감 일시를 넣거나 마감 종류를 바꿔 주세요');return}
+  let job=v.job;if(job==='__new'){job=(v._jobNew||'').trim();if(!job){toast('새 직무 이름을 적어 주세요');return}if(!DB[S.me].jobs.includes(job)){DB[S.me].jobs.push(job);dirtyS(S.me)}}
+  const b=snap(p),newStage=v.stage,oldStage=p.stage;
+  Object.assign(p,{co:v.co.trim(),short:(v.short||'').trim(),job,role:v.role.trim(),type:v.type,ind:v.ind,loc:v.loc.trim(),applyStart:v.applyStart,dueKind:v.dueKind,
+    due:v.dueKind==='확정'?v.due.slice(0,16):null,recheck:v.dueKind==='미확인'?v.recheck:'',steps:v.steps.split('>').map(s=>s.trim()).filter(Boolean),
+    link:v.link.trim(),relLink:v.relLink.trim(),memo:v.memo.trim(),
+    qs:v.qs.filter(q=>(q.t||'').trim()||(q.a||'').trim()).map(q=>{const st=q.st||((q.a||'').trim()?'초안':'미작성');return {id:q.id||uid(),t:(q.t||'').trim(),n:q.n||0,a:q.a||'',st:(st==='미작성'&&(q.a||'').trim())?'초안':st,lock:st==='제출본'}})});
+  if(!p.steps.length)p.steps=['서류'];if(p.cur>=p.steps.length)p.cur=p.steps.length-1;
+  ensureAuto(p);hist(p,'정보 수정');S.ed=null;S.delAsk=false;
+  if(newStage!==oldStage){S.undo={id:p.id,before:b};dirty(p);setStage(p,newStage);return}
+  changed(p,b,'저장했어요');
 }
 let popT=null;
 function markFor(id){return [...document.querySelectorAll('mark[data-cs]')].find(m=>m.dataset.cs.split(' ').includes(id))}
@@ -897,12 +947,14 @@ function hidePop(){const el=document.getElementById('cpop');if(el)el.hidden=true
 function markRead(p){if(!mine(p))return;p.comments.forEach(c=>{if(c.by!==S.me&&!c.read){c.read=true;dirtyC(p,c)}})}
 function renderLayer(){
   if(!S.me){layer.innerHTML=startHTML();return}
+  if(S.ed&&layer.querySelector('.sheet [data-f]'))syncEd();
   let h='';
   if(S.open){const p=find(S.open);if(p)h+=`<div class="scrim" data-act="close"></div><aside class="sheet" role="dialog" aria-label="공고 상세">${detailHTML(p)}</aside>`;else S.open=null}
   if(S.dlg)h+=`<div class="scrim" data-act="dlg-close" style="z-index:52"></div><div class="dlg" role="dialog">${S.dlg()}</div>`;
   const sc=layer.querySelector('.sheet')?layer.querySelector('.sheet').scrollTop:0;
   layer.innerHTML=h;
   const sh=layer.querySelector('.sheet');if(sh&&sc&&!S.flash)sh.scrollTop=sc;
+  if(S.ed&&S.ed.focus){const el=document.getElementById('fDue')||document.getElementById('fRecheck');if(el){el.focus();if(el.scrollIntoView)el.scrollIntoView({block:'center'})}S.ed.focus=false}
   if(S.form&&S.form.focus){const el=document.getElementById('fDue')||document.getElementById('fRecheck');if(el)el.focus();S.form.focus=null}
   if(S.flash){const m=markFor(S.flash);const el=m||document.getElementById('c-'+S.flash);if(el&&el.scrollIntoView)el.scrollIntoView({block:'center'});if(m){S.pin=S.flash;}S.flash=null}
   if(S.pin&&S.open){const m=markFor(S.pin);if(m)showPop(m,true);else hidePop()}else{const el=document.getElementById('cpop');if(el&&!S.open)el.hidden=true}
@@ -1070,9 +1122,9 @@ document.addEventListener('click',e=>{
     case 'switch':if(v!==S.me){S.me=v;S.who=v;cfg.me=v;saveCfg();S.open=null;S.dlg=null;S.fInd='';S.fJob='';S.bQ='';render();toast(`${nm(v)} 화면으로 바꿨어요`)}else{S.dlg=null;renderLayer()}break;
     case 'peek':S.who=ro()?S.me:other(S.me);S.open=null;S.dlg=null;S.fInd='';S.fJob='';S.bQ='';render();break;
     case 'nav':S.view=v;S.open=null;S.dlg=null;render();break;
-    case 'open':S.open=id;S.delAsk=false;S.editQ=null;S.flash=null;S.replyTo=null;{const q=find(id);if(q)markRead(q)}render();break;
+    case 'open':S.open=id;S.ed=null;S.delAsk=false;S.editQ=null;S.flash=null;S.replyTo=null;{const q=find(id);if(q)markRead(q)}render();break;
     case 'open-c':S.open=id;S.flash=t.dataset.c;S.editQ=null;{const q=find(id);if(q)markRead(q)}render();break;
-    case 'close':S.open=null;S.delAsk=false;S.editQ=null;S.flash=null;hidePop();render();break;
+    case 'close':S.open=null;S.ed=null;S.delAsk=false;S.editQ=null;S.flash=null;hidePop();render();break;
     case 'dlg-close':closeDlg();break;
     case 'undo':if(S.undo){const q=find(S.undo.id);if(q){restore(q,S.undo.before);dirty(q)}S.undo=null;render();toast('되돌렸어요')}break;
     case 'stage-menu':stageMenu(id);break;
@@ -1080,14 +1132,19 @@ document.addEventListener('click',e=>{
     case 'res-ok':{const q=find(id),b=snap(q);const r=(document.querySelector('input[name=res]:checked')||{}).value||'불합격';const old=q.stage;q.stage='종료';q.result=r;
       q.failAt=(r==='불합격'||r==='포기/무응답')?$('#failAt').value:'';if(r==='최종합격')q.cur=q.steps.length;hist(q,`${COLNAME[old]} → 종료 (${r}${q.failAt?' · '+q.failAt:''})`);S.dlg=null;S.endOpen[r]=true;changed(q,b,`${shortCo(q.co)} → 종료 (${r})`);break}
     case 'od-sub':setStage(find(id),'제출');break;
-    case 'od-ext':{const q=find(id);S.form={mode:'edit',id,v:fromPost(q),focus:'due'};formDlg();break}
+    case 'od-ext':{const q=find(id);S.open=id;edStart(q,true);render();break}
     case 'od-drop':{const q=find(id),b=snap(q);const old=q.stage;q.stage='종료';q.result='포기/무응답';q.failAt=q.steps[0]||'서류';hist(q,`${COLNAME[old]} → 종료 (포기 · 마감 지남)`);changed(q,b,`${shortCo(q.co)} → 포기`);break}
     case 'submit-done':if(p)setStage(p,'제출');break;
     case 'step-menu':if(p)stepDlg(p);break;
     case 'step-ok':if(p){const i=+((document.querySelector('input[name=stp]:checked')||{}).value||p.cur);const b=snap(p);p.cur=i;
       if(i>0){const o=p.stage,ns=stageOfStep(p.steps[i]);p.stage=ns;if(!p.submitted)p.submitted=TODAY;hist(p,o===ns?`현재 전형: ${p.steps[i]}`:`${COLNAME[o]} → ${COLNAME[ns]} (${p.steps[i]})`)}else hist(p,`현재 전형: ${p.steps[i]}`);
       S.dlg=null;changed(p,b,`${shortCo(p.co)} · 현재 전형: ${p.steps[i]}`)}break;
-    case 'edit':if(p){S.form={mode:'edit',id:p.id,v:fromPost(p)};formDlg()}break;
+    case 'edit':if(p){edStart(p);renderLayer()}break;
+    case 'ed-cancel':S.ed=null;S.delAsk=false;renderLayer();break;
+    case 'ed-save':edSave();break;
+    case 'ed-q-add':syncEd();S.ed.v.qs.push({t:'',n:0,a:'',st:'미작성',lock:false});renderLayer();break;
+    case 'ed-rm-q':syncEd();S.ed.v.qs.splice(+t.dataset.i,1);renderLayer();break;
+    case 'ed-unlock':syncEd();S.ed.v.qs[+t.dataset.i].lock=false;renderLayer();break;
     case 'edit-a':S.editQ={pid:p.id,qi:+t.dataset.i};renderLayer();break;
     case 'cancel-a':S.editQ=null;renderLayer();break;
     case 'save-a':if(p){const q=p.qs[+t.dataset.i];q.a=$('#ansTa').value;if(q.st==='미작성'&&q.a.trim())q.st='초안';S.editQ=null;dirty(p);render();toast('답변을 저장했어요')}break;
@@ -1148,6 +1205,7 @@ document.addEventListener('change',e=>{
   if(el.id==='remember'||el.id==='remember2'){cfg.remember=el.checked;saveCfg();return}
   if(el.dataset.auto){DB[S.me].auto[el.dataset.auto]=el.checked;dirtyS(S.me);toast(el.checked?'자동 할 일을 켰어요':'자동 할 일을 껐어요');return}
   if(el.id==='aImg'){addFiles(el.files);return}
+  if((el.dataset.f==='dueKind'||el.dataset.f==='job')&&S.ed&&el.closest('.sheet')){syncEd();renderLayer();return}
   if(el.dataset.f==='dueKind'||el.dataset.f==='job'){syncForm();formDlg();return}
   if(!c)return;const p=S.open?find(S.open):null;
   if(c==='task'){const k=el.dataset.k.split(':');let tk;if(k[0]==='g'){tk=DB[k[1]].tasks[+k[2]]}else{const q=find(k[0]);tk=q.tasks[+k[1]]}
@@ -1163,6 +1221,7 @@ document.addEventListener('input',e=>{
   const el=e.target;
   if(el.id==='recQ'){S.recQ=el.value;$('#recBody').innerHTML=recRows()}
   if(el.id==='bQ'){S.bQ=el.value;$('#boardBody').innerHTML=boardBody()}
+  if(el.dataset&&el.dataset.qf==='a'&&S.ed&&el.closest('.sheet')){const q=S.ed.v.qs[+el.dataset.q];const c=document.querySelector('[data-cnt="'+el.dataset.q+'"]');const len=el.value.replace(/\n/g,'').length;if(c&&q){c.textContent=len.toLocaleString()+' / '+(q.n?Number(q.n).toLocaleString():'-')+'자';c.classList.toggle('over',!!q.n&&len>q.n)}}
   if(el.id==='ansTa'){const p=find(S.open),q=p&&p.qs[S.editQ.qi];const len=el.value.replace(/\n/g,'').length;const c=$('#ansCnt');if(c&&q){c.textContent=`${len.toLocaleString()} / ${q.n?q.n.toLocaleString():'-'}자`;c.classList.toggle('over',!!q.n&&len>q.n)}}
   if(el.dataset&&el.dataset.f){const f=el.closest('.field');if(f&&String(el.value).trim())f.classList.remove('missing');
     if(el.dataset.f==='co'&&S.form&&S.form.mode!=='edit'){const n=$('#dupNote');if(n)n.innerHTML=dupH(el.value,S.form.id)}}
