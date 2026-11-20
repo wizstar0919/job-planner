@@ -55,7 +55,12 @@ const VIEWS=[['cal','달력','cal'],['home','홈','home'],['board','보드','boa
 /* ================= 기기 저장 ================= */
 const LS={get(k,d){try{const v=localStorage.getItem('jp_'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem('jp_'+k,JSON.stringify(v))}catch(e){}},del(k){try{localStorage.removeItem('jp_'+k)}catch(e){}}};
 const cfg=Object.assign({server:'',pw:'',remember:false,me:''},LS.get('cfg',{}));
-(function(){const m=location.hash.match(/(?:^#|&)s=([^&]+)/);if(m){cfg.server=decodeURIComponent(m[1]);LS.set('cfg',cfg);history.replaceState(null,'',location.pathname+location.search)}})();
+(function(){/* 서버 주소: 링크의 #s= 또는 ?s= 에서 읽어 기기에 저장. 주소창의 #s= 는 지우지 않고 오히려 채워 둠
+   → 카톡에서 사파리로 넘기거나 "홈 화면에 추가"해도 서버 주소가 같이 따라감 */
+  const m=location.hash.match(/(?:^#|&)s=([^&]+)/)||location.search.match(/[?&]s=([^&]+)/);
+  if(m){try{cfg.server=decodeURIComponent(m[1]);LS.set('cfg',cfg)}catch(e){}}
+  if(cfg.server&&!/(?:^#|&)s=/.test(location.hash)){try{history.replaceState(null,'',location.pathname+location.search.replace(/([?&])s=[^&]*&?/,'$1').replace(/[?&]$/,'')+'#s='+encodeURIComponent(cfg.server))}catch(e){}}
+})();
 const saveCfg=()=>LS.set('cfg',cfg);
 
 /* ================= 데이터 ================= */
