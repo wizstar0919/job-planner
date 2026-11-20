@@ -128,8 +128,6 @@ mark[data-cs]{cursor:pointer}
 @container app (max-width:760px){.cal-side{height:auto;min-height:0;overflow:visible}.cal-side .sec.nod{position:static;margin-top:0}}
 
 /* ===== 정리: 차분하게 ===== */
-/* E. 넓은 화면은 최대 폭 */
-.shell{max-width:1760px;margin-inline:auto;width:100%}
 /* 달력 칸 폭에 따라 내용 줄이기 (좁으면 회사명만) */
 .cal{container:cal/inline-size}
 @container cal (max-width:1100px){.cal .ev .ty,.cal .ev .jb{display:none}}
