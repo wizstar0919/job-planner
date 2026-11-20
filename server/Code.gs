@@ -18,7 +18,7 @@ const SCHEMA = {
   posts: { tab: '공고', cols: [['id','id'],['co','회사'],['job','지원 직무'],['role','상세 직무명'],['type','유형'],['ind','업권'],['loc','근무지'],
     ['link','공고 링크'],['relLink','관련 자료'],['applyStart','접수 시작'],['dueKind','마감 종류'],['due','마감'],['recheck','재확인일'],
     ['stage','단계'],['result','결과'],['failAt','탈락 단계'],['submitted','제출일'],['steps','전형 절차'],['cur','현재 전형'],
-    ['memo','비고'],['src','등록 경로'],['created','생성일'],['updated','수정일']] },
+    ['memo','비고'],['src','등록 경로'],['created','생성일'],['updated','수정일'],['short','달력 표시 이름']] },
   qs: { tab: '문항', cols: [['id','id'],['pid','공고 id'],['i','순번'],['t','문항'],['n','글자 수'],['a','답변'],['st','상태'],['lock','잠금']] },
   events: { tab: '일정', cols: [['id','id'],['pid','공고 id'],['d','날짜'],['k','종류'],['t','내용']] },
   tasks: { tab: '할 일', cols: [['id','id'],['pid','공고 id'],['t','내용'],['due','기한'],['done','완료'],['doneAt','완료일'],['auto','자동']] },
@@ -98,6 +98,9 @@ function sheet_(b, table) {
     sh = b.insertSheet(def.tab);
     sh.getRange(1, 1, 1, def.cols.length).setValues([def.cols.map(c => c[1])]).setFontWeight('bold');
     sh.setFrozenRows(1);
+    sh.getRange(1, 1, sh.getMaxRows(), def.cols.length).setNumberFormat('@');
+  } else if (sh.getLastColumn() < def.cols.length) { // 칸이 새로 생겼으면 머리글을 채움
+    sh.getRange(1, 1, 1, def.cols.length).setValues([def.cols.map(c => c[1])]).setFontWeight('bold');
     sh.getRange(1, 1, sh.getMaxRows(), def.cols.length).setNumberFormat('@');
   }
   return sh;
@@ -208,15 +211,16 @@ function extract_(input) {
     '- events: 공고에 날짜가 나온 전형 일정만 (k: apt=인적성·AI역량, int=면접, ann=결과 발표, etc=기타). 서류 마감은 넣지 않음\n' +
     '- qs: 자기소개서 문항을 **원문 그대로** (요약·수정 금지), n은 글자 수 제한 (없으면 0)\n' +
     '- memo: "고용형태 · 근무지 · 주요 업무 · 전형 · 우대 · 마감 시각" 순서로 한 줄 요약 (가운뎃점으로 구분, 공고에 있는 것만)\n' +
+    '- short: 휴대폰 달력의 좁은 칸에 쓸 회사 줄임말. 한글 2~4자 또는 영문 약자 2~5자로 널리 쓰는 이름 (예: SK네트웍스서비스→SKNS, 고영테크놀러지→고영, 한국투자증권→한투)\n' +
     (input.text ? '\n[붙여넣은 공고 본문]\n' + String(input.text).slice(0, 60000) + '\n' : '') +
     (pageTxt ? '\n[링크에서 가져온 내용] ' + input.url + '\n' + pageTxt + '\n' : '') +
     ((input.images || []).length ? '\n[위 이미지는 공고 화면 캡처입니다]\n' : '')
   });
 
   const schema = { type: 'object', additionalProperties: false,
-    required: ['co','job','role','type','ind','loc','applyStart','dueKind','due','steps','events','qs','memo'],
+    required: ['co','short','job','role','type','ind','loc','applyStart','dueKind','due','steps','events','qs','memo'],
     properties: {
-      co: { type: 'string' }, job: { type: 'string' }, role: { type: 'string' },
+      co: { type: 'string' }, short: { type: 'string' }, job: { type: 'string' }, role: { type: 'string' },
       type: { type: 'string', enum: ['', '인턴', '정규직', '계약직'] },
       ind: { type: 'string', enum: ['', '은행', '증권', '자산운용', '저축은행', '캐피탈/카드', '보험', '공기업', '일반기업', '기타'] },
       loc: { type: 'string' }, applyStart: { type: 'string' },

@@ -391,6 +391,24 @@ body{padding:0}
   .cal .ev{font-size:10px;line-height:1.3}
   .cal .cell .n{font-size:12px}
 }
+/* 휴대폰 주 보기: 요일별 세로 목록 */
+.weeklist{display:flex;flex-direction:column}
+.wrow{display:grid;grid-template-columns:64px minmax(0,1fr);gap:10px;padding:10px 12px;border-bottom:1px solid var(--line);align-items:start}
+.wrow:last-child{border-bottom:0}
+.wrow.today{background:var(--accent-soft)}
+.wday{display:flex;flex-direction:column;gap:2px;font-size:12.5px;color:var(--muted)}
+.wday b{font-size:15px;color:var(--fg)}
+.wrow .list{gap:6px}
+@container app (max-width:760px){
+  .cal .ev{font-size:11px;letter-spacing:-.03em}
+  .cal .ev .tx{display:inline}
+}
+.wrow.today{background:var(--surface-2);box-shadow:inset 3px 0 0 var(--accent)}
+@container app (max-width:760px){
+  .cal .grid7 .ev .ico{display:none}
+  .cal .grid7 .ev{padding:0 2px;font-size:11px}
+  .cal .grid7 .ev:not(.k-due){color:var(--fg)}
+}
 </style>
 </head>
 <body>
@@ -430,7 +448,7 @@ const ddC=n=>n<=1?'urgent':n<=3?'warn':'';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const KIND={due:['📝','서류 마감'],sub:['📤','제출'],apt:['🧠','인적성·AI역량'],int:['🎤','면접'],ann:['📢','결과 발표'],etc:['•','기타']};
-const COLS=[['관심','관심','--s1'],['작성중','작성 중','--s2'],['제출','제출','--s3'],['전형','전형 진행','--s4'],['종료','종료','--s5']];
+const COLS=[['관심','시작 전','--s1'],['작성중','작성 중','--s2'],['제출','제출','--s3'],['전형','전형 진행','--s4'],['종료','종료','--s5']];
 const COLNAME=Object.fromEntries(COLS.map(c=>[c[0],c[1]]));
 const RESULTS=['최종합격','불합격','포기/무응답','인재풀'];
 const DUEKIND=[['확정','확정 (일시 있음)'],['채용시','채용 시 마감'],['미확인','미확인']];
@@ -467,7 +485,7 @@ const Y=b=>b?'Y':'';
 function build(w,t){
   const P0=emptyPerson(w);if(!t)return P0;
   const posts=(t.posts||[]).map(r=>({id:r.id,co:r.co||'',job:r.job||'',role:r.role||'',type:r.type||'',ind:r.ind||'',loc:r.loc||'',link:r.link||'',relLink:r.relLink||'',
-    applyStart:r.applyStart||'',dueKind:r.dueKind||'미확인',due:r.due||null,recheck:r.recheck||'',stage:r.stage||'관심',result:r.result||'',failAt:r.failAt||'',submitted:r.submitted||'',
+    short:r.short||'',applyStart:r.applyStart||'',dueKind:r.dueKind||'미확인',due:r.due||null,recheck:r.recheck||'',stage:r.stage||'관심',result:r.result||'',failAt:r.failAt||'',submitted:r.submitted||'',
     steps:(r.steps||'서류').split('>').map(s=>s.trim()).filter(Boolean),cur:+r.cur||0,memo:r.memo||'',src:r.src||'',created:r.created||'',updated:r.updated||'',qs:[],tasks:[],events:[],hist:[],comments:[]}));
   const by=Object.fromEntries(posts.map(p=>[p.id,p]));
   (t.qs||[]).slice().sort((a,b)=>(+a.i)-(+b.i)).forEach(r=>{const p=by[r.pid];if(p)p.qs.push({id:r.id,t:r.t||'',n:+r.n||0,a:r.a||'',st:r.st||'미작성',lock:r.lock==='Y'})});
@@ -482,7 +500,7 @@ function build(w,t){
 }
 function setData(data){['me','gh'].forEach(w=>{Object.assign(DB[w],build(w,data[w]))});loaded=true}
 const postRow=p=>({id:p.id,co:p.co,job:p.job,role:p.role,type:p.type,ind:p.ind,loc:p.loc,link:p.link,relLink:p.relLink,applyStart:p.applyStart,dueKind:p.dueKind,due:p.due||'',recheck:p.recheck,
-  stage:p.stage,result:p.result,failAt:p.failAt,submitted:p.submitted,steps:p.steps.join(' > '),cur:p.cur,memo:p.memo,src:p.src||'',created:p.created||TODAY,updated:new Date().toISOString().slice(0,16)});
+  stage:p.stage,result:p.result,failAt:p.failAt,submitted:p.submitted,steps:p.steps.join(' > '),cur:p.cur,memo:p.memo,short:p.short||'',src:p.src||'',created:p.created||TODAY,updated:new Date().toISOString().slice(0,16)});
 const cRow=(p,c)=>({id:c.id,pid:p.id,qi:c.qi<0?'':c.qi,quote:c.quote,text:c.text,by:c.by,at:c.at,replies:JSON.stringify(c.replies||[]),resolved:Y(c.resolved),read:Y(c.read)});
 function bundleOps(p){
   p.qs.forEach(q=>{if(!q.id)q.id=uid()});p.events.forEach(e=>{if(!e.id)e.id=uid()});p.tasks.forEach(t=>{if(!t.id)t.id=uid()});p.hist.forEach(h=>{if(!h.id)h.id=uid()});
@@ -626,7 +644,9 @@ async function enter(w){
 function calEvents(){const m={};const add=(w,p)=>evsOf(p).forEach(e=>{(m[e.d]=m[e.d]||[]).push({w,p,e})});
   vis(S.who).forEach(p=>add(S.who,p));if(!ro()&&S.overlay)vis(other(S.me)).forEach(p=>add(other(S.me),p));return m}
 function weekStart(s){const d=dt(s);const off=(d.getDay()+6)%7;d.setDate(d.getDate()-off);return iso(d)}
-function evRow(x){return rowOpen(x.p.id,x.w!==S.who?'partner':'',`<span class="kind k-${x.e.k}">${KIND[x.e.k]?KIND[x.e.k][0]:'•'}</span><span class="grow"><div class="t oneline" title="${esc(full(x.p))}">${x.w!==S.who?'('+esc(nm(x.w))+') ':''}${esc(label(x.p))}</div><div class="s">${esc(x.e.t)}</div></span><span class="chev">›</span>`)}
+function evRow(x){return rowOpen(x.p.id,x.w!==S.who?'partner':'',`<span class="kind k-${x.e.k}">${KIND[x.e.k]?KIND[x.e.k][0]:'•'}</span><span class="grow"><div class="t oneline" title="${esc(full(x.p))}">${x.w!==S.who?'('+esc(nm(x.w))+') ':''}${esc(label(x.p))}</div><div class="s">${x.day?md(x.day)+' · ':''}${esc(x.e.t)}</div></span><span class="chev">›</span>`)}
+const narrow=()=>app.clientWidth<760;
+function shortName(p){if(p.short)return p.short;const s=shortCo(p.co).replace(/\s+/g,' ');return /^[A-Za-z0-9 &.\-]+$/.test(s)?s.slice(0,6):s.replace(/\s/g,'').slice(0,4)}
 function calHTML(){
   const mode=S.calMode,evm=calEvents();
   const seg=`<div class="seg">${[['list','목록'],['month','월'],['week','주']].map(m=>`<button class="${mode===m[0]?'on':''}" data-act="cal-mode" data-v="${m[0]}">${m[1]}</button>`).join('')}</div>`;
@@ -640,12 +660,19 @@ function calHTML(){
     if(mode==='week'){const ws=weekStart(S.calSel);for(let i=0;i<7;i++)cells.push(addDays(ws,i));title=`${md(cells[0])} ~ ${md(cells[6])}`}
     else{const y=S.calY,mo=S.calM,first=new Date(y,mo,1),off=(first.getDay()+6)%7,dim=new Date(y,mo+1,0).getDate(),start=new Date(y,mo,1-off),rows=Math.ceil((off+dim)/7);
       for(let i=0;i<rows*7;i++){const d=new Date(start);d.setDate(start.getDate()+i);cells.push(iso(d))}title=`${y}년 ${mo+1}월`}
-    const lim=99;
+    const lim=99,nar=narrow();
+    const legend=`<div class="legend">${Object.entries(KIND).filter(([k])=>k!=='sub').map(([k,v])=>`<span class="${k==='due'?'k-due':''}">${v[0]} ${v[1]}</span>`).join('')}${ro()?'':`<span style="opacity:.55">흐린 표시 = ${esc(nm(other(S.me)))}</span>`}</div>`;
+    if(mode==='week'&&nar){/* 휴대폰 주 보기: 요일별 세로 목록 */
+      body=`<div class="weeklist">${cells.map(k=>{const ev=evm[k]||[];return `<div class="wrow ${k===TODAY?'today':''}"><div class="wday"><b>${WD[dt(k).getDay()]}</b><span class="num">${md(k).replace(/\(.\)/,'')}</span></div><div class="list">${ev.length?ev.map(evRow).join(''):'<span class="muted small">—</span>'}</div></div>`}).join('')}</div>${legend}`;
+    }else{
     body=`<div class="grid7" style="grid-template-rows:auto repeat(${cells.length/7},minmax(0,1fr))">${['월','화','수','목','금','토','일'].map(w=>`<div class="wd">${w}</div>`).join('')}${cells.map(k=>{const ev=evm[k]||[];const oth=mode==='month'&&dt(k).getMonth()!==S.calM;
-      return `<button class="cell ${oth?'other':''} ${k===TODAY?'today':''} ${k===S.calSel?'sel':''} ${mode==='week'?'week':''}" data-act="cal-day" data-v="${k}"><span class="n">${dt(k).getDate()}</span>${ev.slice(0,lim).map(x=>`<span class="ev k-${x.e.k} ${x.w!==S.who?'p':''}" title="${esc((KIND[x.e.k]||KIND.etc)[1]+' · '+full(x.p))}">${(KIND[x.e.k]||KIND.etc)[0]}<span class="tx">${esc(label(x.p))}</span></span>`).join('')}${ev.length>lim?`<span class="ev muted">+${ev.length-lim}</span>`:''}</button>`}).join('')}</div>
-     <div class="legend">${Object.entries(KIND).filter(([k])=>k!=='sub').map(([k,v])=>`<span class="${k==='due'?'k-due':''}">${v[0]} ${v[1]}</span>`).join('')}${ro()?'':`<span style="opacity:.55">흐린 표시 = ${esc(nm(other(S.me)))}</span>`}</div>`;
+      return `<button class="cell ${oth?'other':''} ${k===TODAY?'today':''} ${k===S.calSel?'sel':''} ${mode==='week'?'week':''}" data-act="cal-day" data-v="${k}"><span class="n">${dt(k).getDate()}</span>${ev.slice(0,lim).map(x=>`<span class="ev k-${x.e.k} ${x.w!==S.who?'p':''}" title="${esc((KIND[x.e.k]||KIND.etc)[1]+' · '+full(x.p))}"><span class="ico">${(KIND[x.e.k]||KIND.etc)[0]}</span><span class="tx">${esc(nar&&mode==='month'?shortName(x.p):label(x.p))}</span></span>`).join('')}${ev.length>lim?`<span class="ev muted">+${ev.length-lim}</span>`:''}</button>`}).join('')}</div>${legend}`;
+    }
     const sel=evm[S.calSel]||[];
-    side=`<section class="sec"><h3>${md(S.calSel)} <span class="count">${sel.length}</span></h3><div class="list">${sel.length?sel.map(evRow).join(''):'<div class="empty">이 날은 일정이 없어요</div>'}</div></section>`;
+    if(nar&&!sel.length){/* 휴대폰: 고른 날에 일정이 없으면 앞으로 7일 일정 */
+      const up=[];for(let i=0;i<=7;i++){const k=addDays(TODAY,i);(evm[k]||[]).forEach(x=>up.push(x))}
+      side=mode==='week'?'':`<section class="sec"><h3>${md(S.calSel)}엔 일정이 없어요 · 앞으로 7일 <span class="count">${up.length}</span></h3><div class="list">${up.length?up.map(x=>evRow(Object.assign({},x,{day:x.e.d}))).join(''):'<div class="empty">앞으로 7일 동안 일정이 없어요</div>'}</div></section>`;
+    }else side=mode==='week'&&nar?'':`<section class="sec"><h3>${md(S.calSel)} <span class="count">${sel.length}</span></h3><div class="list">${sel.length?sel.map(evRow).join(''):'<div class="empty">이 날은 일정이 없어요</div>'}</div></section>`;
   }
   const arrows=mode==='list'?'':`<button class="icon-btn" data-act="cal-prev" aria-label="이전">‹</button>`;
   const arrowsR=mode==='list'?'':`<button class="icon-btn" data-act="cal-next" aria-label="다음">›</button>`;
@@ -851,7 +878,7 @@ function settingsDlg(){const w=S.me;show(()=>dlgHead('설정 · '+esc(nm(w)))+`<
   <div class="set-row"><button class="link-btn" data-act="copy-invite">초대 링크 복사</button><button class="link-btn" style="color:var(--urgent)" data-act="forget">이 기기 연결 지우기</button></div></div>`)}
 
 /* ================= S5 공고 추가 · S6 입력 ================= */
-const BLANK=()=>({co:'',job:'',role:'',type:'',ind:'',loc:'',applyStart:'',dueKind:'확정',due:'',recheck:'',steps:'서류 > 면접',link:'',relLink:'',events:[],qs:[],memo:'',stage:'관심'});
+const BLANK=()=>({co:'',short:'',job:'',role:'',type:'',ind:'',loc:'',applyStart:'',dueKind:'확정',due:'',recheck:'',steps:'서류 > 면접',link:'',relLink:'',events:[],qs:[],memo:'',stage:'관심'});
 function addDlg(){
   const a=S.add;
   if(a.phase==='loading'){show(()=>dlgHead('공고 추가')+`<div class="dlg-b" style="text-align:center"><div class="spin"></div><b>공고를 읽고 있어요</b><span class="muted">회사·직무·마감·전형·문항을 정리하는 중 (보통 10~40초)</span></div>`);return}
@@ -867,7 +894,7 @@ function addDlg(){
    ${a.lastForm?`<button class="btn block" data-act="to-form">정리 결과로 돌아가기 ›</button>`:''}
    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span class="muted num small">${usage.hasKey?`오늘 사용 ${usage.used} / ${usage.limit}`:''}</span><button class="link-btn" data-act="manual">직접 입력할게요 ›</button></div></div>`);
 }
-function fromPost(p){return {co:p.co,job:p.job,role:p.role,type:p.type,ind:p.ind,loc:p.loc,applyStart:p.applyStart,dueKind:p.dueKind,due:p.due||'',recheck:p.recheck||'',steps:p.steps.join(' > '),link:p.link,relLink:p.relLink,events:[],qs:p.qs.map(q=>Object.assign({},q)),memo:p.memo,stage:p.stage}}
+function fromPost(p){return {co:p.co,short:p.short||'',job:p.job,role:p.role,type:p.type,ind:p.ind,loc:p.loc,applyStart:p.applyStart,dueKind:p.dueKind,due:p.due||'',recheck:p.recheck||'',steps:p.steps.join(' > '),link:p.link,relLink:p.relLink,events:[],qs:p.qs.map(q=>Object.assign({},q)),memo:p.memo,stage:p.stage}}
 function dupH(co,exId){const c=String(co||'').trim();if(!c)return '';const d=DB[S.me].posts.find(p=>p.co.trim()===c&&p.id!==exId&&p.stage!=='종료');
   return d?`<div class="note info">같은 회사 공고가 이미 있어요: <b>${esc(label(d))}</b> · ${COLNAME[d.stage]} · ${esc(dueText(d))}<br>같은 공고라면 저장하지 말고 닫아 주세요. 작성 중인 내용은 그대로예요.</div>`:''}
 function formDlg(){
@@ -884,6 +911,7 @@ function formDlg(){
    <div id="dupNote">${m==='edit'?'':dupH(v.co,F.id)}</div>
    <div class="f2"><div class="field ${miss('co')}"><label for="fCo">회사</label><input id="fCo" data-f="co" value="${esc(v.co)}"></div>
     <div class="field ${miss('job')}"><label for="fJob">지원 직무</label><select id="fJob" data-f="job"><option value=""></option>${jobs.map(j=>`<option ${v.job===j?'selected':''}>${esc(j)}</option>`).join('')}${v.job&&v.job!=='__new'&&!jobs.includes(v.job)?`<option selected>${esc(v.job)}</option>`:''}<option value="__new" ${v.job==='__new'?'selected':''}>+ 직접 추가</option></select>${v.job==='__new'?'<input id="fJobNew" placeholder="새 직무 이름" style="margin-top:4px">':''}</div></div>
+   <div class="field"><label for="fShort">달력 표시 이름 (선택 · 휴대폰 달력에 쓰는 줄임말)</label><input id="fShort" data-f="short" value="${esc(v.short||'')}" placeholder="비우면 회사명 앞 4글자 (예: SKNS, 한투)"></div>
    <div class="field ${miss('role')}"><label for="fRole">상세 직무명</label><input id="fRole" data-f="role" value="${esc(v.role)}" placeholder="공고에 적힌 직무명"></div>
    <div class="f2"><div class="field ${miss('type')}"><label for="fType">유형</label><select id="fType" data-f="type"><option value=""></option>${TYPES.map(o=>`<option ${v.type===o?'selected':''}>${o}</option>`).join('')}</select></div>
     <div class="field ${miss('ind')}"><label for="fInd">업권</label><select id="fInd" data-f="ind"><option value=""></option>${INDS.map(o=>`<option ${v.ind===o?'selected':''}>${o}</option>`).join('')}</select></div></div>
@@ -916,7 +944,7 @@ function saveForm(){
   if(!v.co.trim()){toast('회사 이름은 꼭 넣어 주세요');return}
   if(v.dueKind==='확정'&&!v.due){toast('마감 일시를 넣거나 마감 종류를 바꿔 주세요');return}
   let job=v.job;if(job==='__new'){job=(v._jobNew||'').trim();if(!job){toast('새 직무 이름을 적어 주세요');return}if(!DB[S.me].jobs.includes(job)){DB[S.me].jobs.push(job);dirtyS(S.me)}}
-  const fields={co:v.co.trim(),job,role:v.role.trim(),type:v.type,ind:v.ind,loc:v.loc.trim(),applyStart:v.applyStart,dueKind:v.dueKind,due:v.dueKind==='확정'?v.due.slice(0,16):null,recheck:v.dueKind==='미확인'?v.recheck:'',
+  const fields={co:v.co.trim(),short:(v.short||'').trim(),job,role:v.role.trim(),type:v.type,ind:v.ind,loc:v.loc.trim(),applyStart:v.applyStart,dueKind:v.dueKind,due:v.dueKind==='확정'?v.due.slice(0,16):null,recheck:v.dueKind==='미확인'?v.recheck:'',
     steps:v.steps.split('>').map(s=>s.trim()).filter(Boolean),link:v.link.trim(),relLink:v.relLink.trim(),memo:v.memo.trim(),qs:v.qs.filter(q=>q.t.trim()).map(q=>({id:q.id||uid(),t:q.t.trim(),n:q.n,st:q.st||(q.a?'초안':'미작성'),a:q.a||'',lock:!!q.lock}))};
   if(!fields.steps.length)fields.steps=['서류'];
   if(F.mode==='edit'){const p=find(F.id),b=snap(p);Object.assign(p,fields);if(p.cur>=p.steps.length)p.cur=p.steps.length-1;ensureAuto(p);hist(p,'정보 수정');S.dlg=null;S.form=null;changed(p,b,'정보를 고쳤어요');return}
@@ -939,7 +967,7 @@ async function runExtract(){
   if(A.imgs.length)input.images=A.imgs.map(s=>({type:'image/jpeg',data:s.split(',')[1]}));
   A.phase='loading';addDlg();
   try{const j=await api('extract',{input});if(S.add!==A)return;if(j.usage)usage=j.usage;const d=j.data;
-    A.phase='review';S.form={mode:'review',v:{co:d.co||'',job:d.job||'',role:d.role||'',type:d.type||'',ind:d.ind||'',loc:d.loc||'',applyStart:d.applyStart||'',dueKind:d.dueKind||'미확인',due:(d.due||'').slice(0,16),recheck:'',
+    A.phase='review';S.form={mode:'review',v:{co:d.co||'',short:d.short||'',job:d.job||'',role:d.role||'',type:d.type||'',ind:d.ind||'',loc:d.loc||'',applyStart:d.applyStart||'',dueKind:d.dueKind||'미확인',due:(d.due||'').slice(0,16),recheck:'',
       steps:(d.steps&&d.steps.length?d.steps:['서류']).join(' > '),link:input.url||'',relLink:'',events:(d.events||[]).filter(e=>/^\d{4}-\d{2}-\d{2}/.test(e.d)).map(e=>({d:e.d.slice(0,10),k:e.k,t:e.t})),qs:(d.qs||[]).map(q=>({t:q.t,n:q.n||0})),memo:d.memo||'',stage:'관심'}};
     A.lastForm=S.form;formDlg()}
   catch(e){if(S.add!==A)return;A.phase='input';if(e.code==='need_capture')A.tab='cap';A.warn=errMsg(e);addDlg()}
@@ -951,7 +979,7 @@ function fitCells(){document.querySelectorAll('.cal.fill .cell').forEach(c=>{
   const H=c.clientHeight;const fits=e=>e.offsetTop+e.offsetHeight<=H-2;if(fits(evs[evs.length-1]))return;
   let k=evs.length;while(k>0&&!fits(evs[k-1]))k--;k=Math.max(0,k-1);
   evs.slice(k).forEach(e=>e.hidden=true);const m=document.createElement('span');m.className='ev muted more';m.textContent='+'+(evs.length-k);c.appendChild(m)})}
-let fitT=null;window.addEventListener('resize',()=>{clearTimeout(fitT);fitT=setTimeout(()=>{if(S.view==='cal')fitCells()},120)});
+let fitT=null,wasNarrow=null;window.addEventListener('resize',()=>{clearTimeout(fitT);fitT=setTimeout(()=>{if(S.view!=='cal'||!S.me)return;const n=narrow();if(wasNarrow!==null&&n!==wasNarrow){wasNarrow=n;render()}else{wasNarrow=n;fitCells()}},120)});
 
 /* ================= 렌더 ================= */
 function render(){
