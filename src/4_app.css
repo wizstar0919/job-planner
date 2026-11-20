@@ -162,3 +162,8 @@ mark[data-cs]{cursor:pointer}
 /* 달력: 공고 막대를 누르면 바로 상세, 빈 곳은 날짜 선택 */
 .cal .ev.go{cursor:pointer}
 .cal .ev.go:hover{filter:brightness(1.25);outline:1px solid var(--col);outline-offset:-1px}
+
+/* 달력 굵기 통일: 회사명만 굵게, 유형·직무는 보통 (마감 일정도 같게) */
+.cal .ev,.cal .ev.k-due{font-weight:400}
+.cal .ev .ty,.cal .ev .jb{font-weight:400}
+.cal .ev .tx b{font-weight:700}
