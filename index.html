@@ -461,12 +461,36 @@ mark[data-cs]{cursor:pointer}
 .wd.sun{color:var(--urgent)}
 .wd.sat{color:var(--st-sub)}
 .cal-side{display:flex;flex-direction:column;gap:18px;min-width:0}
+
+/* 달력 칸 글자 */
+.cal .ev .tx b{font-weight:700}
+.cal .ev .ty{opacity:.8;font-weight:500}
+/* 잘린 글자: 끝을 흐리게 (말줄임표 대신) */
+.fade{text-overflow:clip!important;-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent)}
+/* 날짜 없는 공고: 작게 */
+.minis{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.mini-row{padding:7px 12px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--line);white-space:nowrap;overflow:hidden}
+.mini-row:last-child{border-bottom:0}
+.mini-row:hover{background:var(--surface-2)}
+/* 왼쪽 메뉴 접기 */
+.side-tg{flex:none}
+.app.side-off .side{display:none}
+.app.side-off .shell{grid-template-columns:minmax(0,1fr)}
+.app.side-off .fab{display:grid;place-items:center;position:fixed;right:28px;bottom:28px;width:56px;height:56px;border-radius:50%;border:0;background:var(--accent);color:var(--accent-fg);z-index:31;box-shadow:0 6px 16px var(--shadow)}
+.app.side-off .fab svg{width:24px;height:24px}
+@container app (max-width:760px){.side-tg{display:none}}
+
+/* 오른쪽 칸: 달력 높이에 맞추고, 날짜 없는 공고는 맨 아래에 고정 */
+.cal-side{height:calc(100vh - 175px);height:calc(100dvh - 175px);min-height:600px;overflow-y:auto}
+.cal-side .sec.nod{margin-top:auto;position:sticky;bottom:0;background:var(--bg);padding-top:8px}
+@container app (max-width:760px){.cal-side{height:auto;min-height:0;overflow:visible}.cal-side .sec.nod{position:static;margin-top:0}}
 </style>
 </head>
 <body>
 
 <div class="app" id="app">
   <header class="top">
+    <button class="icon-btn side-tg" data-act="side-tg" aria-label="왼쪽 메뉴 접기·펴기" title="메뉴 접기·펴기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M9 4v16"/></svg></button>
     <button class="prof" id="profBtn" data-act="prof-menu" aria-label="사용자 전환"><i></i><span class="nm" id="profName"></span> ▾</button>
     <span class="peek-on" id="peekOn"></span>
     <span class="sync" id="sync" aria-live="polite"></span>
@@ -508,7 +532,7 @@ function stepIdxFor(p,st){const i=p.steps.findIndex((s,j)=>j>0&&stageOfStep(s)==
 const COLNAME=Object.fromEntries(COLS.map(c=>[c[0],c[1]]));
 const RESULTS=['최종합격','불합격','포기/무응답','인재풀'];
 const DUEKIND=[['확정','확정 (일시 있음)'],['채용시','채용 시 마감'],['미확인','미확인']];
-const TYPES=['인턴','정규직','계약직'];
+const TYPES=['체험형','전환형','정규직','계약직'];
 const INDS=['은행','증권','자산운용','저축은행','캐피탈/카드','보험','공기업','일반기업','기타'];
 const BASEJOBS=['영업','자산운용','채권운용','자금','재무/회계','경영지원/기획','리스크/심사','사업개발'];
 const QST=['미작성','초안','제출본'];
@@ -615,7 +639,7 @@ function errMsg(e){const c=e&&e.code;return {network:'인터넷 연결을 확인
   too_long:'공고가 너무 길어요. 필요한 부분만 붙여넣어 주세요',parse_error:'정리 결과를 읽지 못했어요. 다시 시도해 주세요'}[c]||('문제가 생겼어요 ('+(c||'알 수 없음')+')')}
 
 /* ================= 상태 · 도우미 ================= */
-const S={me:null,who:null,view:'cal',boardCol:'작성중',fInd:'',fJob:'',bQ:'',bSort:'due',endOpen:{},calY:T0.getFullYear(),calM:T0.getMonth(),calSel:TODAY,calMode:'month',overlay:false,recQ:'',
+const S={sideOff:LS.get('sideOff',false),me:null,who:null,view:'cal',boardCol:'작성중',fInd:'',fJob:'',bQ:'',bSort:'due',endOpen:{},calY:T0.getFullYear(),calM:T0.getMonth(),calSel:TODAY,calMode:'month',overlay:false,recQ:'',
   open:null,ed:null,dlg:null,add:null,addDraft:null,form:null,delAsk:false,undo:null,editQ:null,sel:null,replyTo:null,showRes:{},flash:null,busy:false};
 const $=s=>document.querySelector(s);
 const app=$('#app'),main=$('#main'),layer=$('#layer');
@@ -664,9 +688,9 @@ function resPill(p){const c={최종합격:'ok',불합격:'bad','포기/무응답
 
 function renderNav(){
   $('#side').innerHTML=(ro()?'':`<button class="btn primary add" data-act="add">+ 공고 추가</button>`)+VIEWS.map(v=>`<button class="nav-btn ${S.view===v[0]?'on':''}" data-act="nav" data-v="${v[0]}">${ICON[v[2]]}${v[1]}</button>`).join('');
-  $('#tabbar').innerHTML=VIEWS.map(v=>`<button class="${S.view===v[0]?'on':''}" data-act="nav" data-v="${v[0]}">${ICON[v[2]]}${v[1]}</button>`).join('');
+  $('#tabbar').innerHTML=[VIEWS[1],VIEWS[0],VIEWS[2],VIEWS[3]].map(v=>`<button class="${S.view===v[0]?'on':''}" data-act="nav" data-v="${v[0]}">${ICON[v[2]]}${v[1]}</button>`).join('');
   $('#profName').textContent=nm(S.me);$('#peekBtn').textContent=ro()?'내 화면으로':`👀 ${nm(other(S.me))} 보기`;$('#peekOn').textContent=ro()?`👀 ${nm(S.who)} 보는 중`:'';
-  app.classList.toggle('ro',ro());showSync();
+  app.classList.toggle('ro',ro());app.classList.toggle('side-off',!!S.sideOff);showSync();
 }
 function roBanner(){return ro()?`<div class="ro-banner">👀 <span><b>${esc(nm(S.who))}</b> 님 플래너를 보는 중 · 수정은 안 되고 <b>댓글</b>은 달 수 있어요</span></div>`:''}
 const rowOpen=(id,cls,inner)=>`<div class="row click ${cls||''}" role="button" tabindex="0" data-act="open" data-id="${id}">${inner}</div>`;
@@ -694,7 +718,7 @@ async function enter(w){
   catch(e){S.busy=false;if(e.code==='bad_password'||e.code==='locked'){cfg.pw='';saveCfg()}if(e.code==='no_server'){cfg.server=''}
     renderLayer();const m=msg();if(m){m.textContent=errMsg(e);m.className='late small'}return}
   S.busy=false;cfg.me=w;saveCfg();
-  S.me=w;S.who=w;S.view='cal';S.calMode='month';S.open=null;S.dlg=null;render();
+  S.me=w;S.who=w;S.view=narrow()?'home':'cal';S.calMode='month';S.open=null;S.dlg=null;render();
 }
 
 /* ================= S1 달력 ================= */
@@ -711,6 +735,8 @@ function calSide(evm,mode,nar){
   const today=tasksOf(S.who).filter(x=>x.t.due&&diff(x.t.due)<=0&&(!x.t.done||x.t.doneAt===TODAY)).sort((a,b)=>(a.t.done-b.t.done)||a.t.due.localeCompare(b.t.due));
   const left=today.filter(x=>!x.t.done).length;
   let h=`<section class="sec"><h3>오늘 할 일 <span class="count">${left}</span></h3><div class="list">${today.length?today.map(taskRowH).join(''):'<div class="empty">오늘 기한인 할 일이 없어요</div>'}</div></section>`;
+  const hot=vis(S.who).filter(p=>isOpen(p)&&p.dueKind==='확정'&&p.due&&diff(p.due)>=0&&diff(p.due)<=2).sort((a,b)=>a.due.localeCompare(b.due));
+  if(hot.length)h+=`<section class="sec"><h3>🔥 마감 임박 공고 <span class="count">${hot.length}</span></h3><div class="list">${hot.map(p=>{const n=diff(p.due);return rowOpen(p.id,'',`<span class="dd ${ddC(n)}">${ddL(n)}</span><span class="grow"><div class="t oneline" title="${esc(full(p))}">${esc(label(p))}</div><div class="s">${md(p.due)} ${p.due.slice(11,16)} 마감</div></span><span class="chev">›</span>`)}).join('')}</div></section>`;
   if(!(mode==='week'&&nar)){
     const sel=evm[S.calSel]||[];
     if(nar&&!sel.length){/* 휴대폰: 고른 날에 일정이 없으면 앞으로 7일 */
@@ -719,14 +745,14 @@ function calSide(evm,mode,nar){
     }else h+=`<section class="sec"><h3>${md(S.calSel)} 일정 <span class="count">${sel.length}</span></h3><div class="list">${sel.length?sel.map(evRow).join(''):'<div class="empty">이 날은 일정이 없어요</div>'}</div></section>`;
   }
   const nod=vis(S.who).filter(p=>isOpen(p)&&p.dueKind!=='확정');
-  if(nod.length)h+=`<section class="sec"><h3>날짜 없는 공고 <span class="count">${nod.length}</span></h3><div class="list">${nod.map(p=>rowOpen(p.id,'',`<span class="dd unk">${p.dueKind==='채용시'?'채용 시':'미확인'}</span><span class="grow"><div class="t oneline" title="${esc(full(p))}">${esc(label(p))}</div><div class="s">${esc(dueText(p))}</div></span><span class="chev">›</span>`)).join('')}</div></section>`;
+  if(nod.length)h+=`<section class="sec nod"><h3>날짜 없는 공고 <span class="count">${nod.length}</span></h3><div class="minis">${nod.map(p=>`<div class="mini-row oneline" role="button" tabindex="0" data-act="open" data-id="${p.id}" title="${esc(full(p))}">${esc(label(p))}</div>`).join('')}</div></section>`;
   return `<div class="cal-side">${h}</div>`;
 }
 function calHTML(){
   const mode=S.calMode,evm=calEvents();
   const seg=`<div class="seg">${[['list','목록'],['month','월'],['week','주']].map(m=>`<button class="${mode===m[0]?'on':''}" data-act="cal-mode" data-v="${m[0]}">${m[1]}</button>`).join('')}</div>`;
   let title,body,side='';const nar=narrow();
-  const legend=`<div class="legend">${STLEG.map(([k,n])=>`<span class="lg st-${k}"><i></i>${n}</span>`).join('')}<span>📝 서류 마감</span><span>🧠 인적성</span><span>🎤 면접</span><span>📢 발표</span>${!ro()&&S.overlay?`<span style="opacity:.55">흐린 표시 = ${esc(nm(other(S.me)))}</span>`:''}</div>`;
+  const legend=`<div class="legend">${STLEG.map(([k,n])=>`<span class="lg st-${k}"><i></i>${n}</span>`).join('')}${!ro()&&S.overlay?`<span style="opacity:.55">흐린 표시 = ${esc(nm(other(S.me)))}</span>`:''}</div>`;
   if(mode==='list'){
     title='앞으로 30일';const groups=[];
     for(let i=0;i<=30;i++){const k=addDays(TODAY,i);if(evm[k])groups.push([k,evm[k]])}
@@ -740,7 +766,7 @@ function calHTML(){
       body=`<div class="weeklist">${cells.map(k=>{const ev=evm[k]||[];return `<div class="wrow ${k===TODAY?'today':''}"><div class="wday"><b>${WD[dt(k).getDay()]}</b><span class="num">${md(k).replace(/\(.\)/,'')}</span></div><div class="list">${ev.length?ev.map(evRow).join(''):'<span class="muted small">—</span>'}</div></div>`}).join('')}</div>${legend}`;
     }else{
       body=`<div class="grid7" style="grid-template-rows:auto repeat(${cells.length/7},minmax(0,1fr))">${WD.map((w,i)=>`<div class="wd ${i===0?'sun':i===6?'sat':''}">${w}</div>`).join('')}${cells.map(k=>{const ev=evm[k]||[];const oth=mode==='month'&&dt(k).getMonth()!==S.calM;
-        return `<button class="cell ${oth?'other':''} ${k===TODAY?'today':''} ${k===S.calSel?'sel':''} ${mode==='week'?'week':''}" data-act="cal-day" data-v="${k}"><span class="n">${dt(k).getDate()}</span>${ev.map(x=>`<span class="ev k-${x.e.k} st-${STK[x.p.stage]||'start'} ${x.w!==S.who?'p':''}" title="${esc(COLNAME[x.p.stage]+' · '+(KIND[x.e.k]||KIND.etc)[1]+' · '+full(x.p))}"><span class="ico">${(KIND[x.e.k]||KIND.etc)[0]}</span><span class="tx">${esc(nar&&mode==='month'?shortName(x.p):label(x.p))}</span></span>`).join('')}</button>`}).join('')}</div>${legend}`;
+        return `<button class="cell ${oth?'other':''} ${k===TODAY?'today':''} ${k===S.calSel?'sel':''} ${mode==='week'?'week':''}" data-act="cal-day" data-v="${k}"><span class="n">${dt(k).getDate()}</span>${ev.map(x=>`<span class="ev k-${x.e.k} st-${STK[x.p.stage]||'start'} ${x.w!==S.who?'p':''}" title="${esc(COLNAME[x.p.stage]+' · '+(KIND[x.e.k]||KIND.etc)[1]+' · '+full(x.p))}">${nar&&mode==='month'?`<span class="tx">${esc(shortName(x.p))}</span>`:`<span class="tx"><b>${esc(shortCo(x.p.co))}</b> ${esc(x.p.job||shortRole(x.p.role))}${x.p.type?` <span class="ty">[${esc(x.p.type)}]</span>`:''}</span>`}</span>`).join('')}</button>`}).join('')}</div>${legend}`;
     }
   }
   side=calSide(evm,mode,nar);
@@ -987,6 +1013,7 @@ function renderLayer(){
   if(S.flash){const m=markFor(S.flash);const el=m||document.getElementById('c-'+S.flash);if(el&&el.scrollIntoView)el.scrollIntoView({block:'center'});if(m){S.pin=S.flash;}S.flash=null}
   if(S.pin&&S.open){const m=markFor(S.pin);if(m)showPop(m,true);else hidePop()}else{const el=document.getElementById('cpop');if(el&&!S.open)el.hidden=true}
   const ta=$('#ansTa');if(ta&&document.activeElement!==ta)ta.focus();
+  requestAnimationFrame(markFades);
 }
 
 /* ================= 작은 창 ================= */
@@ -1097,6 +1124,7 @@ function saveForm(){
   const np=Object.assign({id:uid(),stage:v.stage,result:'',failAt:'',submitted:'',cur:0,tasks:[],hist:[{id:uid(),d:TODAY,t:F.mode==='manual'?'등록 (직접 입력)':'등록 (앱 자동 정리)'}],comments:[],
     events:v.events.map(e=>({id:uid(),d:e.d,k:e.k,t:e.t})),src:F.mode==='manual'?'직접입력':'앱 자동정리',created:TODAY},fields);
   if(np.stage==='제출')np.submitted=TODAY;ensureAuto(np);
+  if(!np.type&&/인턴|intern/i.test(np.role+' '+np.co+' '+np.memo))np.tasks.push({id:uid(),t:'유형 확인 (체험형/전환형)',due:TODAY,done:false,auto:true});
   DB[S.me].posts.unshift(np);dirty(np);S.dlg=null;S.add=null;S.addDraft=null;S.form=null;S.open=np.id;render();toast('저장했어요');
 }
 function shrink(dataUrl){return new Promise(res=>{const img=new Image();img.onload=()=>{const M=1568;let w=img.width,h=img.height;const r=Math.min(1,M/Math.max(w,h));w=Math.round(w*r);h=Math.round(h*r);
@@ -1127,12 +1155,16 @@ function fitCells(){document.querySelectorAll('.cal.fill .cell').forEach(c=>{
   evs.slice(k).forEach(e=>e.hidden=true);const m=document.createElement('span');m.className='ev muted more';m.textContent='+'+(evs.length-k);c.appendChild(m)})}
 let fitT=null,wasNarrow=null;window.addEventListener('resize',()=>{clearTimeout(fitT);fitT=setTimeout(()=>{if(S.view!=='cal'||!S.me)return;const n=narrow();if(wasNarrow!==null&&n!==wasNarrow){wasNarrow=n;render()}else{wasNarrow=n;fitCells()}},120)});
 
+/* ================= 잘린 글자 흐리게 ================= */
+function markFades(){document.querySelectorAll('.oneline,.cal .ev,.card .t,.card .s').forEach(el=>{el.classList.toggle('fade',el.scrollWidth>el.clientWidth+1)})}
+window.addEventListener('resize',()=>{clearTimeout(markFades.t);markFades.t=setTimeout(markFades,150)});
+
 /* ================= 렌더 ================= */
 function render(){
   if(!S.me){main.innerHTML='';app.classList.add('starting');renderLayer();return}
   app.classList.remove('starting');
   renderNav();main.innerHTML=S.view==='home'?homeHTML():S.view==='board'?boardHTML():S.view==='cal'?calHTML():recHTML();renderLayer();
-  if(S.view==='cal')requestAnimationFrame(fitCells);
+  requestAnimationFrame(()=>{if(S.view==='cal')fitCells();markFades()});
 }
 
 /* ================= 이벤트 ================= */
@@ -1144,6 +1176,7 @@ document.addEventListener('click',e=>{
   const p=S.open?find(S.open):null;
   switch(a){
     case 'enter':enter(v);break;
+    case 'side-tg':S.sideOff=!S.sideOff;LS.set('sideOff',S.sideOff);render();break;
     case 'retry':saveErr=false;flush();break;
     case 'to-start':S.me=null;S.who=null;S.open=null;S.dlg=null;render();break;
     case 'prof-menu':show(()=>dlgHead('사용자 전환')+`<div class="dlg-b"><div class="menu-list">${['me','gh'].map(w=>`<button class="${S.me===w?'cur':''}" data-act="switch" data-v="${w}"><b>${esc(nm(w))}</b>${S.me===w?' (지금)':''}${newComments(w).length?` · 새 댓글 ${newComments(w).length}`:''}</button>`).join('')}<button data-act="to-start">시작 화면으로</button></div><span class="muted small">보던 화면(달력·홈·보드·기록) 그대로 바뀌어요</span></div>`);break;
@@ -1278,7 +1311,7 @@ window.addEventListener('beforeunload',e=>{if(queue.size||saving){e.preventDefau
 /* ================= 시작 ================= */
 const cached=LS.get('cache',null);
 if(cached&&cached.data){try{setData(cached.data);raw=cached.data}catch(e){}}
-if(cfg.remember&&cfg.me&&cfg.server&&cfg.pw&&loaded){S.me=cfg.me;S.who=cfg.me;render();refresh(true)}
+if(cfg.remember&&cfg.me&&cfg.server&&cfg.pw&&loaded){S.me=cfg.me;S.who=cfg.me;S.view=narrow()?'home':'cal';render();refresh(true)}
 else render();
 })();
 </script>

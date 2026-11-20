@@ -103,3 +103,26 @@ mark[data-cs]{cursor:pointer}
 .wd.sun{color:var(--urgent)}
 .wd.sat{color:var(--st-sub)}
 .cal-side{display:flex;flex-direction:column;gap:18px;min-width:0}
+
+/* 달력 칸 글자 */
+.cal .ev .tx b{font-weight:700}
+.cal .ev .ty{opacity:.8;font-weight:500}
+/* 잘린 글자: 끝을 흐리게 (말줄임표 대신) */
+.fade{text-overflow:clip!important;-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent)}
+/* 날짜 없는 공고: 작게 */
+.minis{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.mini-row{padding:7px 12px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--line);white-space:nowrap;overflow:hidden}
+.mini-row:last-child{border-bottom:0}
+.mini-row:hover{background:var(--surface-2)}
+/* 왼쪽 메뉴 접기 */
+.side-tg{flex:none}
+.app.side-off .side{display:none}
+.app.side-off .shell{grid-template-columns:minmax(0,1fr)}
+.app.side-off .fab{display:grid;place-items:center;position:fixed;right:28px;bottom:28px;width:56px;height:56px;border-radius:50%;border:0;background:var(--accent);color:var(--accent-fg);z-index:31;box-shadow:0 6px 16px var(--shadow)}
+.app.side-off .fab svg{width:24px;height:24px}
+@container app (max-width:760px){.side-tg{display:none}}
+
+/* 오른쪽 칸: 달력 높이에 맞추고, 날짜 없는 공고는 맨 아래에 고정 */
+.cal-side{height:calc(100vh - 175px);height:calc(100dvh - 175px);min-height:600px;overflow-y:auto}
+.cal-side .sec.nod{margin-top:auto;position:sticky;bottom:0;background:var(--bg);padding-top:8px}
+@container app (max-width:760px){.cal-side{height:auto;min-height:0;overflow:visible}.cal-side .sec.nod{position:static;margin-top:0}}

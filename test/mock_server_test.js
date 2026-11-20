@@ -25,7 +25,7 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));const log=[];const ck=(n,c)=>lo
  ck('start, server from hash (no server field)',!!d.querySelector('.start')&&!d.querySelector('#srvIn')&&!!d.querySelector('#pwIn'));
  d.querySelector('#pwIn').value='1111';click('.pcard[data-v="me"]');await sleep(50);ck('wrong pw msg',d.querySelector('#pwMsg').textContent.includes('비밀번호'));
  d.querySelector('#pwIn').value='0000';d.querySelector('#remember').checked=true;d.querySelector('#remember').dispatchEvent(new w.Event('change',{bubbles:true}));
- click('.pcard[data-v="me"]');await sleep(50);ck('entered cal',d.querySelector('#main').textContent.includes('민석의 달력'));
+ click('.pcard[data-v="me"]');await sleep(50);ck('entered (home on narrow)',d.querySelector('#profName').textContent==='민석');
  click('.side [data-act="add"]');d.querySelector('#aLink').value='https://example.com/job';click('[data-act="extract"]');await sleep(50);
  ck('review from extract',d.querySelector('#fCo')&&d.querySelector('#fCo').value==='테스트전자');
  click('[data-act="form-save"]');await sleep(800);

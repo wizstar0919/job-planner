@@ -204,7 +204,7 @@ function extract_(input) {
     '규칙\n' +
     '- 공고에 없는 정보는 지어내지 말고 빈 문자열 "" (숫자는 0, 목록은 [])\n' +
     '- job: 다음 중 가장 가까운 것 하나 (맞는 게 없으면 ""): ' + jobs + '\n' +
-    '- role: 공고에 적힌 직무명 그대로 · type: 인턴/정규직/계약직 중 하나(채용연계형·전환형 인턴도 "인턴") · ind: 은행/증권/자산운용/저축은행/캐피탈/카드/보험/공기업/일반기업/기타 중 하나\n' +
+    '- role: 공고에 적힌 직무명 그대로 · type: 체험형(인턴 후 정규직 전환 없음)/전환형(채용연계·채용전제·정규직 전환 가능 인턴)/정규직/계약직 중 하나. 인턴인데 전환 여부가 공고에 없으면 "" · ind: 은행/증권/자산운용/저축은행/캐피탈/카드/보험/공기업/일반기업/기타 중 하나\n' +
     '- 마감: 날짜와 시각이 있으면 dueKind "확정", due "YYYY-MM-DDTHH:MM" (시각이 없으면 23:59). "채용 시 마감"이면 dueKind "채용시". 알 수 없으면 "미확인". 연도가 없으면 오늘 이후 가장 가까운 날짜로\n' +
     '- applyStart: 접수 시작일 "YYYY-MM-DD" (없으면 "")\n' +
     '- steps: 전형 순서 (예: ["서류","인적성","1차 면접","최종 면접"])\n' +
@@ -221,7 +221,7 @@ function extract_(input) {
     required: ['co','short','job','role','type','ind','loc','applyStart','dueKind','due','steps','events','qs','memo'],
     properties: {
       co: { type: 'string' }, short: { type: 'string' }, job: { type: 'string' }, role: { type: 'string' },
-      type: { type: 'string', enum: ['', '인턴', '정규직', '계약직'] },
+      type: { type: 'string', enum: ['', '체험형', '전환형', '정규직', '계약직'] },
       ind: { type: 'string', enum: ['', '은행', '증권', '자산운용', '저축은행', '캐피탈/카드', '보험', '공기업', '일반기업', '기타'] },
       loc: { type: 'string' }, applyStart: { type: 'string' },
       dueKind: { type: 'string', enum: ['확정', '채용시', '미확인'] }, due: { type: 'string' },
