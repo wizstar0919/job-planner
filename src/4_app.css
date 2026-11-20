@@ -161,3 +161,12 @@ mark[data-cs]{cursor:pointer}
 .app.side-off .fab{display:none}
 .app.ro .top-add{display:none}
 @container app (max-width:760px){.app.side-off .top-add{display:none}.app.side-off .fab,.fab{display:grid}}
+
+/* 기록: 직무·업권 눌러서 고르기 */
+.bar.pick{cursor:pointer;border-radius:6px;padding:2px 4px;margin:0 -4px}
+.bar.pick:hover{background:var(--surface-2)}
+.bar.dim{opacity:.35}
+.bar.on span.oneline{font-weight:700;color:var(--fg)}
+.bar.on .fill{background:var(--accent)}
+.fchips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:12px}
+.fchip{border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:3px 10px;font-size:12.5px;font-weight:600}

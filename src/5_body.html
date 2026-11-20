@@ -153,7 +153,7 @@ function errMsg(e){const c=e&&e.code;return {network:'인터넷 연결을 확인
 
 /* ================= 상태 · 도우미 ================= */
 const S={sideOff:(()=>{const v=LS.get('sideOff',null);return v===null?window.innerWidth<1500:v})(),me:null,who:null,view:'cal',boardCol:'작성중',fInd:'',fJob:'',bQ:'',bSort:'due',endOpen:{},calY:T0.getFullYear(),calM:T0.getMonth(),calSel:TODAY,calMode:'month',overlay:false,recQ:'',
-  recFrom:'',recTo:'',recPreset:'all',open:null,ed:null,dlg:null,add:null,addDraft:null,form:null,delAsk:false,undo:null,editQ:null,sel:null,replyTo:null,showRes:{},flash:null,busy:false};
+  recFrom:'',recTo:'',recPreset:'all',fJobs:[],fInds:[],open:null,ed:null,dlg:null,add:null,addDraft:null,form:null,delAsk:false,undo:null,editQ:null,sel:null,replyTo:null,showRes:{},flash:null,busy:false};
 const $=s=>document.querySelector(s);
 const app=$('#app'),main=$('#main'),layer=$('#layer');
 const other=w=>w==='me'?'gh':'me';
@@ -357,28 +357,39 @@ function recPreset(v){const t=dt(TODAY);S.recPreset=v;
   else if(v==='month'){S.recFrom=iso(new Date(t.getFullYear(),t.getMonth(),1));S.recTo=iso(new Date(t.getFullYear(),t.getMonth()+1,0))}
   else if(v==='3m'){S.recFrom=addDays(TODAY,-90);S.recTo=TODAY}
   else if(v==='year'){S.recFrom=t.getFullYear()+'-01-01';S.recTo=t.getFullYear()+'-12-31'}}
-function recRows(){const q=S.recQ.trim().toLowerCase();return vis(S.who).filter(p=>p.submitted||p.stage==='종료').filter(inRange).filter(p=>!q||(p.co+p.role+p.ind+p.job).toLowerCase().includes(q)).sort((a,b)=>String(b.submitted).localeCompare(String(a.submitted)))
+const jobKey=p=>p.job||'(미분류)',indKey=p=>p.ind||'(미분류)';
+function recPass(p,skip){return inRange(p)&&(skip==='job'||!S.fJobs.length||S.fJobs.includes(jobKey(p)))&&(skip==='ind'||!S.fInds.length||S.fInds.includes(indKey(p)))}
+function recRows(){const q=S.recQ.trim().toLowerCase();return vis(S.who).filter(p=>p.submitted||p.stage==='종료').filter(p=>recPass(p)).filter(p=>!q||(p.co+p.role+p.ind+p.job).toLowerCase().includes(q)).sort((a,b)=>String(b.submitted).localeCompare(String(a.submitted)))
   .map(p=>`<tr data-act="open" data-id="${p.id}"><td class="num">${p.submitted?p.submitted.slice(2).replace(/-/g,'.'):'-'}</td><td><b>${esc(shortCo(p.co))}</b> · ${esc(shortRole(p.role))}</td><td>${esc(p.job)}</td><td>${esc(p.ind)}</td><td>${p.stage==='종료'?resPill(p):p.stage==='제출'?'<span class="pill mute">⏳ 결과 대기</span>':'<span class="pill">'+esc(COLNAME[p.stage]||'전형')+'</span>'}</td></tr>`).join('')||'<tr><td colspan="5" class="muted">아직 없어요</td></tr>'}
 function recHTML(){
-  const all=vis(S.who),ps=all.filter(inRange),sub=ps.filter(p=>p.submitted||(p.stage==='종료'&&p.result!=='포기/무응답'));
+  const all=vis(S.who),ps=all.filter(p=>recPass(p));
+  const isSub=p=>p.submitted||(p.stage==='종료'&&p.result!=='포기/무응답');
+  const sub=ps.filter(isSub);
   const presets=[['all','전체'],['month','이번 달'],['3m','최근 3개월'],['year','올해']];
-  const period=`<div class="toolbar period" style="margin-bottom:14px"><div class="seg">${presets.map(([k,n])=>`<button class="${S.recPreset===k?'on':''}" data-act="rec-preset" data-v="${k}">${n}</button>`).join('')}</div>
+  const period=`<div class="toolbar period" style="margin-bottom:10px"><div class="seg">${presets.map(([k,n])=>`<button class="${S.recPreset===k?'on':''}" data-act="rec-preset" data-v="${k}">${n}</button>`).join('')}</div>
    <input type="date" class="search" style="max-width:160px" data-ch="recFrom" value="${esc(S.recFrom)}" aria-label="시작일"><span class="muted">~</span><input type="date" class="search" style="max-width:160px" data-ch="recTo" value="${esc(S.recTo)}" aria-label="종료일">
    <span class="muted small">기준: 제출일 (없으면 마감일) · ${ps.length}건</span></div>`;
+  const chips=[...S.fJobs.map(v=>['job',v]),...S.fInds.map(v=>['ind',v])];
+  const chipH=chips.length?`<div class="fchips">${chips.map(([k,v])=>`<button class="fchip" data-act="rec-f" data-k="${k}" data-v="${esc(v)}">${k==='job'?'직무':'업권'}: ${esc(v)} ✕</button>`).join('')}<button class="link-btn small" data-act="rec-f-clear">전체 해제</button></div>`:'';
   const decided=sub.filter(p=>p.stage!=='제출');
   const passed=sub.filter(p=>isProc(p)||(p.stage==='종료'&&(p.result==='최종합격'||p.result==='인재풀'||(p.failAt&&p.failAt!=='서류'))));
   const rate=decided.length?Math.round(passed.length/decided.length*100):0;
-  const cnt=f=>{const o={};sub.forEach(p=>{const k=f(p);if(k)o[k]=(o[k]||0)+1});return o};
+  const cntOf=(list,f)=>{const o={};list.forEach(p=>{const k=f(p);o[k]=(o[k]||0)+1});return o};
   const fail={};ps.filter(p=>p.stage==='종료'&&p.failAt).forEach(p=>fail[p.failAt]=(fail[p.failAt]||0)+1);
-  const bars=o=>{const e=Object.entries(o).sort((a,b)=>b[1]-a[1]).slice(0,6);const mx=Math.max(1,...e.map(x=>x[1]));return e.length?`<div class="bars">${e.map(([k,v])=>`<div class="bar"><span class="oneline">${esc(k)}</span><span class="track"><span class="fill" style="width:${v/mx*100}%"></span></span><span class="num">${v}</span></div>`).join('')}</div>`:'<div class="muted small">아직 없어요</div>'};
+  const bars=(o,kind,sel)=>{const e=Object.entries(o).sort((a,b)=>b[1]-a[1]);const shown=kind?e:e.slice(0,6);const mx=Math.max(1,...e.map(x=>x[1]));
+    return e.length?`<div class="bars">${shown.map(([k,v])=>{const on=sel&&sel.includes(k),dim=sel&&sel.length&&!on;
+      return `<div class="bar ${kind?'pick':''} ${on?'on':''} ${dim?'dim':''}" ${kind?`role="button" tabindex="0" data-act="rec-f" data-k="${kind}" data-v="${esc(k)}" title="눌러서 ${on?'선택 해제':'이 조건으로 보기'}"`:''}><span class="oneline">${esc(k)}</span><span class="track"><span class="fill" style="width:${v/mx*100}%"></span></span><span class="num">${v}</span></div>`}).join('')}</div>`:'<div class="muted small">아직 없어요</div>'};
+  /* 직무별은 업권 조건만, 업권별은 직무 조건만 걸고 셈 → 다른 항목도 계속 고를 수 있게 */
+  const jobBars=bars(cntOf(all.filter(p=>recPass(p,'job')).filter(isSub),jobKey),'job',S.fJobs);
+  const indBars=bars(cntOf(all.filter(p=>recPass(p,'ind')).filter(isSub),indKey),'ind',S.fInds);
   const prog=COLS.filter(c=>c[0]!=='종료').map(([k,name,v])=>`<button data-act="goto-col" data-v="${k}"><span><i class="dot" style="--c:var(${v})"></i>${name}</span><b>${all.filter(p=>p.stage===k).length}</b></button>`).join('');
   return `${roBanner()}<div class="view-head"><h2>${esc(nm(S.who))}의 지원 기록</h2></div>
   <section class="sec"><h3>지금 진행 현황</h3><div class="prog">${prog}</div></section>
-  ${period}
+  ${period}${chipH}
   <div class="stats"><div class="stat"><div class="k">지원한 공고</div><div class="v">${sub.length}<small>건</small></div><div class="k">결과 대기 ${ps.filter(p=>p.stage==='제출').length}건</div></div>
    <div class="stat"><div class="k">서류 통과율</div><div class="v">${rate}<small>% (${passed.length}/${decided.length})</small></div><div class="k">서류 결과가 나온 공고 기준</div></div>
    <div class="stat"><div class="k">떨어지거나 그만둔 단계</div>${bars(fail)}</div></div>
-  <div class="stats" style="grid-template-columns:repeat(2,minmax(0,1fr))"><div class="stat"><div class="k">직무별 지원</div>${bars(cnt(p=>p.job))}</div><div class="stat"><div class="k">업권별 지원</div>${bars(cnt(p=>p.ind))}</div></div>
+  <div class="stats" style="grid-template-columns:repeat(2,minmax(0,1fr))"><div class="stat"><div class="k">직무별 지원 <span class="muted">· 눌러서 고르기</span></div>${jobBars}</div><div class="stat"><div class="k">업권별 지원 <span class="muted">· 눌러서 고르기</span></div>${indBars}</div></div>
   <div class="toolbar" style="margin-bottom:10px"><input class="search" id="recQ" type="search" placeholder="회사·직무·업권 검색" value="${esc(S.recQ)}" aria-label="검색"></div>
   <div class="tbl-wrap"><table><thead><tr><th>제출일</th><th>회사 · 상세 직무</th><th>직무</th><th>업권</th><th>결과</th></tr></thead><tbody id="recBody">${recRows()}</tbody></table></div>`;
 }
@@ -698,12 +709,14 @@ document.addEventListener('click',e=>{
   switch(a){
     case 'enter':enter(v);break;
     case 'rec-preset':recPreset(v);render();break;
+    case 'rec-f':{const arr=t.dataset.k==='job'?S.fJobs:S.fInds;const i=arr.indexOf(v);if(i>=0)arr.splice(i,1);else arr.push(v);render();break}
+    case 'rec-f-clear':S.fJobs=[];S.fInds=[];render();break;
     case 'side-tg':S.sideOff=!S.sideOff;LS.set('sideOff',S.sideOff);render();break;
     case 'retry':saveErr=false;flush();break;
     case 'to-start':S.me=null;S.who=null;S.open=null;S.dlg=null;render();break;
     case 'prof-menu':show(()=>dlgHead('사용자 전환')+`<div class="dlg-b"><div class="menu-list">${['me','gh'].map(w=>`<button class="${S.me===w?'cur':''}" data-act="switch" data-v="${w}"><b>${esc(nm(w))}</b>${S.me===w?' (지금)':''}${newComments(w).length?` · 새 댓글 ${newComments(w).length}`:''}</button>`).join('')}<button data-act="to-start">시작 화면으로</button></div><span class="muted small">보던 화면(달력·홈·보드·기록) 그대로 바뀌어요</span></div>`);break;
-    case 'switch':if(v!==S.me){S.me=v;S.who=v;cfg.me=v;saveCfg();S.open=null;S.dlg=null;S.fInd='';S.fJob='';S.bQ='';render();toast(`${nm(v)} 화면으로 바꿨어요`)}else{S.dlg=null;renderLayer()}break;
-    case 'peek':S.who=ro()?S.me:other(S.me);S.open=null;S.dlg=null;S.fInd='';S.fJob='';S.bQ='';render();break;
+    case 'switch':if(v!==S.me){S.me=v;S.who=v;cfg.me=v;saveCfg();S.open=null;S.dlg=null;S.fInd='';S.fJob='';S.bQ='';S.fJobs=[];S.fInds=[];render();toast(`${nm(v)} 화면으로 바꿨어요`)}else{S.dlg=null;renderLayer()}break;
+    case 'peek':S.who=ro()?S.me:other(S.me);S.open=null;S.dlg=null;S.fInd='';S.fJob='';S.bQ='';S.fJobs=[];S.fInds=[];render();break;
     case 'nav':S.view=v;S.open=null;S.dlg=null;render();break;
     case 'open':S.open=id;S.ed=null;S.delAsk=false;S.editQ=null;S.flash=null;S.replyTo=null;{const q=find(id);if(q)markRead(q)}render();break;
     case 'open-c':S.open=id;S.flash=t.dataset.c;S.editQ=null;{const q=find(id);if(q)markRead(q)}render();break;
