@@ -510,7 +510,7 @@ function errMsg(e){const c=e&&e.code;return {network:'인터넷 연결을 확인
   too_long:'공고가 너무 길어요. 필요한 부분만 붙여넣어 주세요',parse_error:'정리 결과를 읽지 못했어요. 다시 시도해 주세요'}[c]||('문제가 생겼어요 ('+(c||'알 수 없음')+')')}
 
 /* ================= 상태 · 도우미 ================= */
-const S={me:null,who:null,view:'cal',boardCol:'작성중',fInd:'',fJob:'',bQ:'',bSort:'due',endOpen:{},calY:T0.getFullYear(),calM:T0.getMonth(),calSel:TODAY,calMode:'month',overlay:true,recQ:'',
+const S={me:null,who:null,view:'cal',boardCol:'작성중',fInd:'',fJob:'',bQ:'',bSort:'due',endOpen:{},calY:T0.getFullYear(),calM:T0.getMonth(),calSel:TODAY,calMode:'month',overlay:false,recQ:'',
   open:null,dlg:null,add:null,addDraft:null,form:null,delAsk:false,undo:null,editQ:null,sel:null,replyTo:null,showRes:{},flash:null,busy:false};
 const $=s=>document.querySelector(s);
 const app=$('#app'),main=$('#main'),layer=$('#layer');
