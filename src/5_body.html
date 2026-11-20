@@ -167,7 +167,7 @@ const upd=p=>p.updated||p.hist[p.hist.length-1].d;
 const isOpen=p=>p.stage==='관심'||p.stage==='작성중';
 const shortCo=s=>String(s||'').replace(/\(주\)|㈜|주식회사/g,'').replace(/\s*\([^)]*\)/g,'').trim();
 const shortRole=s=>String(s||'').replace(/\s*\([^)]*\)/g,'').trim();
-const label=p=>{const r=shortRole(p.role||p.job);return r?`${shortCo(p.co)} · ${r}`:shortCo(p.co)};
+const label=p=>{const r=shortRole(p.role||p.job);return r?`[${shortCo(p.co)}] ${r}`:`[${shortCo(p.co)}]`};
 const full=p=>`[${String(p.co).trim()}] ${p.role||p.job}`;
 function evsOf(p){const a=(p.events||[]).map(e=>Object.assign({},e));if(p.dueKind==='확정'&&p.due&&p.stage!=='종료')a.push({d:p.due.slice(0,10),k:'due',t:'서류 마감 '+p.due.slice(11,16)});return a}
 function nextEv(p){return (p.events||[]).filter(e=>diff(e.d)>=0).sort((a,b)=>a.d.localeCompare(b.d))[0]}

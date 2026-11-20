@@ -133,25 +133,15 @@ mark[data-cs]{cursor:pointer}
 @container cal (max-width:1100px){.cal .ev .ty,.cal .ev .jb{display:none}}
 /* 오른쪽 칸: 노트북에선 조금 좁게 */
 @container app (max-width:1500px){.cal-wrap{grid-template-columns:minmax(0,1fr) 260px}}
-/* A. 일정: 꽉 찬 색 막대 → 작은 색 점 + 보통 글자 */
-.cal .ev[class*="st-"]{background:transparent;color:var(--fg);padding:1px 2px 1px 13px;position:relative;border-radius:4px}
-.cal .ev[class*="st-"]::before{content:"";position:absolute;left:3px;top:50%;width:7px;height:7px;border-radius:50%;background:var(--col);transform:translateY(-50%)}
-.cal .ev[class*="st-"]:hover{background:var(--surface-2)}
-.cal .ev .ty{color:var(--muted);opacity:1;font-weight:500;margin-right:2px}
-.cal .ev.k-due{font-weight:600}
 /* B. 오늘: 날짜 숫자만 강조, 고른 날은 은은한 바탕 */
 .cell.sel{box-shadow:none;background:var(--surface-2)}
-/* C. 오른쪽: 상자 없이 줄로만 */
-.cal-side .list{gap:0}
-.cal-side .row{border:0;border-radius:8px;background:transparent;padding:8px 6px}
+/* C. 오른쪽: 항목마다 상자 대신 묶음(섹션)마다 상자 하나 */
+.cal-side .list,.cal-side .minis{gap:0;border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:4px}
+.cal-side .row{border:0;border-radius:8px;background:transparent;padding:8px 8px}
 .cal-side .row.click:hover{background:var(--surface-2)}
-.cal-side .empty{border:0;padding:2px 6px;font-size:12.5px}
+.cal-side .empty{border:0;padding:6px 8px;font-size:12.5px}
 .cal-side .dd{min-width:44px;font-size:12px;padding:2px 6px}
-.cal-side .minis{border:0;border-top:1px solid var(--line);border-radius:0}
-.cal-side .mini-row{padding:6px 6px;border-bottom:0;color:var(--muted)}
-.cal-side .mini-row:hover{color:var(--fg)}
-/* 휴대폰 달력 칸도 점 방식 */
-@container app (max-width:760px){.cal .grid7 .ev[class*="st-"]{padding:0 1px 0 9px}.cal .grid7 .ev[class*="st-"]::before{left:1px;width:6px;height:6px}}
+.cal-side .mini-row{padding:6px 8px;border-bottom:0;border-radius:6px}
 
 /* PC에서 메뉴를 접으면: 동그라미 대신 위쪽 바에 + 공고 추가 */
 .top-add{display:none;white-space:nowrap}
