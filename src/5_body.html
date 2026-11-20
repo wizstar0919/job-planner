@@ -44,6 +44,7 @@ const COLNAME=Object.fromEntries(COLS.map(c=>[c[0],c[1]]));
 const RESULTS=['최종합격','불합격','포기/무응답','인재풀'];
 const DUEKIND=[['확정','확정 (일시 있음)'],['채용시','채용 시 마감'],['미확인','미확인']];
 const TYPES=['체험형','전환형','정규직','계약직'];
+const HOT_DAYS=3; /* 마감 임박 기준 (홈·달력 공통) */
 const INDS=['은행','증권','자산운용','저축은행','캐피탈/카드','보험','공기업','일반기업','기타'];
 const BASEJOBS=['영업','자산운용','채권운용','자금','재무/회계','경영지원/기획','리스크/심사','사업개발'];
 const QST=['미작성','초안','제출본'];
@@ -246,7 +247,7 @@ function calSide(evm,mode,nar){
   const today=tasksOf(S.who).filter(x=>x.t.due&&diff(x.t.due)<=0&&!x.t.done).sort((a,b)=>a.t.due.localeCompare(b.t.due));
   const left=today.length;
   let h=`<section class="sec"><h3>오늘 할 일 <span class="count">${left}</span></h3><div class="list">${today.length?today.map(taskRowH).join(''):'<div class="empty">오늘 기한인 할 일이 없어요</div>'}</div></section>`;
-  const hot=vis(S.who).filter(p=>isOpen(p)&&p.dueKind==='확정'&&p.due&&diff(p.due)>=0&&diff(p.due)<=2).sort((a,b)=>a.due.localeCompare(b.due));
+  const hot=vis(S.who).filter(p=>isOpen(p)&&p.dueKind==='확정'&&p.due&&diff(p.due)>=0&&diff(p.due)<=HOT_DAYS).sort((a,b)=>a.due.localeCompare(b.due));
   if(hot.length)h+=`<section class="sec"><h3>🔥 마감 임박 공고 <span class="count">${hot.length}</span></h3><div class="list">${hot.map(p=>{const n=diff(p.due);return rowOpen(p.id,'',`<span class="dd ${ddC(n)}">${ddL(n)}</span><span class="grow"><div class="t oneline" title="${esc(full(p))}">${esc(label(p))}</div><div class="s">${md(p.due)} ${p.due.slice(11,16)} 마감</div></span><span class="chev">›</span>`)}).join('')}</div></section>`;
   if(!(mode==='week'&&nar)){
     const sel=evm[S.calSel]||[];
@@ -295,7 +296,7 @@ function homeHTML(){
   const soon=all.filter(x=>!x.t.done&&x.t.due&&diff(x.t.due)>0&&diff(x.t.due)<=7).sort((a,b)=>a.t.due.localeCompare(b.t.due));
   const open=posts.filter(isOpen);
   const over=open.filter(p=>p.dueKind==='확정'&&p.due&&diff(p.due)<0).sort((a,b)=>a.due.localeCompare(b.due));
-  const urg=open.filter(p=>p.dueKind==='확정'&&p.due&&diff(p.due)>=0&&diff(p.due)<=2).sort((a,b)=>a.due.localeCompare(b.due));
+  const urg=open.filter(p=>p.dueKind==='확정'&&p.due&&diff(p.due)>=0&&diff(p.due)<=HOT_DAYS).sort((a,b)=>a.due.localeCompare(b.due));
   const unk=open.filter(p=>p.dueKind==='미확인');
   const up=[];posts.forEach(p=>(p.events||[]).forEach(e=>{const n=diff(e.d);if(n>=0&&n<=7)up.push({p,e,n})}));up.sort((a,b)=>a.n-b.n);
   const wait=posts.filter(p=>p.stage==='제출').sort((a,b)=>String(a.submitted).localeCompare(String(b.submitted)));
@@ -317,7 +318,7 @@ function homeHTML(){
   <div class="home"><div class="stack">
    <section class="sec"><h3>오늘 할 일 <span class="count">${left}</span></h3><div class="list">${tkH}</div></section>
    ${nc.length?`<section class="sec"><h3>새 댓글 <span class="count">${nc.length}</span></h3><div class="list">${ncH}</div></section>`:''}
-   <section class="sec"><h3>마감 임박 <span class="count">${dueCnt}</span></h3><div class="list">${dueCnt?overH+urgH:'<div class="empty">2일 안에 마감되는 공고가 없어요</div>'}</div></section>
+   <section class="sec"><h3>마감 임박 <span class="count">${dueCnt}</span></h3><div class="list">${dueCnt?overH+urgH:`<div class="empty">${HOT_DAYS}일 안에 마감되는 공고가 없어요</div>`}</div></section>
    <section class="sec"><h3>앞으로 7일 전형 일정 <span class="count">${up.length}</span></h3><div class="list">${upH}</div></section>
   </div><div class="stack">
    <section class="sec"><h3>결과 대기 <span class="count">${wait.length}</span></h3><div class="list">${waitH}</div></section>
