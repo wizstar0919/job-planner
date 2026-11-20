@@ -1,0 +1,16 @@
+
+/* ---- 실제 앱용 덮어쓰기 ---- */
+html,body{margin:0}
+body{padding:0}
+.app{min-height:100vh;min-height:100dvh;background:var(--bg)}
+.top{border-radius:0;padding-top:max(10px,env(safe-area-inset-top,0px));padding-left:max(18px,env(safe-area-inset-left,0px));padding-right:max(18px,env(safe-area-inset-right,0px))}
+.main{padding-left:max(24px,env(safe-area-inset-left,0px));padding-right:max(24px,env(safe-area-inset-right,0px))}
+.sync{font-size:12px;color:var(--muted);white-space:nowrap}
+.app.starting .top,.app.starting .shell,.app.starting .tabbar,.app.starting .fab{visibility:hidden}
+.pcard[disabled]{opacity:.6;cursor:wait}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+@container app (max-width:760px){
+  .top{padding-left:max(14px,env(safe-area-inset-left,0px));padding-right:max(14px,env(safe-area-inset-right,0px))}
+  .main{padding-left:max(14px,env(safe-area-inset-left,0px));padding-right:max(14px,env(safe-area-inset-right,0px))}
+  .sync{display:none}
+}
