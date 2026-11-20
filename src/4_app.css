@@ -16,10 +16,7 @@ body{padding:0}
 }
 /* 달력: 오늘 칸은 테두리만, 서류 마감은 눈에 띄게 */
 .cell.sel{background:transparent;box-shadow:inset 0 0 0 2px var(--accent)}
-.ev.k-due{color:var(--due);font-weight:700;background:var(--due-soft);border-radius:4px;padding:0 4px}
-.ev.k-due.p{opacity:.6}
 .kind.k-due{background:var(--due-soft);color:var(--due)}
-.legend .k-due{color:var(--due);font-weight:600}
 .dd.urgent{background:var(--due-soft);color:var(--due)}
 /* 달력: 화면 높이에 맞춰 꽉 차게 (PC) */
 .cal.fill{display:flex;flex-direction:column;height:calc(100vh - 175px);height:calc(100dvh - 175px);min-height:600px}
@@ -52,7 +49,6 @@ body{padding:0}
 @container app (max-width:760px){
   .cal .grid7 .ev .ico{display:none}
   .cal .grid7 .ev{padding:0 2px;font-size:11px}
-  .cal .grid7 .ev:not(.k-due){color:var(--fg)}
 }
 /* 보드 8칸 (PC: 가로로 나란히, 좁으면 가로 스크롤) */
 .board{grid-template-columns:repeat(8,minmax(160px,1fr));min-width:1320px}
@@ -91,3 +87,19 @@ mark[data-cs]{cursor:pointer}
 .cpop-h{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;color:var(--muted)}
 .cpop.sheetpop{left:0;right:0;bottom:0;top:auto;width:auto;border-radius:16px 16px 0 0;max-height:60vh;padding-bottom:calc(14px + env(safe-area-inset-bottom,0px))}
 [hidden]{display:none!important}
+/* 달력: 단계 색 */
+.cal .ev[class*="st-"]{color:var(--col);background:var(--soft);border-radius:4px;padding:0 4px;margin-bottom:1px}
+.st-start{--col:var(--st-start);--soft:var(--st-start-soft)}
+.st-write{--col:var(--st-write);--soft:var(--st-write-soft)}
+.st-sub{--col:var(--st-sub);--soft:var(--st-sub-soft)}
+.st-test{--col:var(--st-test);--soft:var(--st-test-soft)}
+.st-int{--col:var(--st-int);--soft:var(--st-int-soft)}
+.st-end{--col:var(--st-end);--soft:var(--st-end-soft)}
+.cal .ev.k-due{font-weight:700}
+.cal .ev.st-end{opacity:.75}
+.cal .ev.p{opacity:.5}
+.legend .lg{display:inline-flex;align-items:center;gap:5px;color:var(--col);font-weight:600}
+.legend .lg i{width:10px;height:10px;border-radius:3px;background:var(--col);display:inline-block}
+.wd.sun{color:var(--urgent)}
+.wd.sat{color:var(--st-sub)}
+.cal-side{display:flex;flex-direction:column;gap:18px;min-width:0}
