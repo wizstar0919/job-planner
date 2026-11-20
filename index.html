@@ -580,6 +580,18 @@ mark[data-cs]{cursor:pointer}
 @container app (max-width:760px){.rtable .hide-n{display:none}table.rtable{min-width:0}.rate .muted{display:none}}
 .mcol .mbar,.lg.a{background:color-mix(in srgb,var(--accent) 32%,transparent)}
 .lg.a{border:0}
+
+/* 분석 조건 바 (아래 고정) */
+.cbar{position:sticky;bottom:12px;z-index:20;margin-top:16px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
+  background:var(--surface);border:1px solid var(--accent);border-radius:12px;padding:10px 12px;box-shadow:0 8px 24px var(--shadow)}
+.cbar.enter{animation:cbarUp .22s ease-out}
+@keyframes cbarUp{from{transform:translateY(24px);opacity:0}to{transform:none;opacity:1}}
+.cb-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-width:0}
+.cb-btns{display:flex;gap:6px;flex:none}
+.cb-n{margin-left:4px}
+@container app (max-width:760px){.cbar{bottom:calc(70px + env(safe-area-inset-bottom,0px))}.app.has-cbar .fab{bottom:calc(150px + env(safe-area-inset-bottom,0px))}}
+@media (prefers-reduced-motion:reduce){.cbar.enter{animation:none}}
+@container app (max-width:760px){.app.has-cbar .fab,.app.side-off.has-cbar .fab{display:none}}
 </style>
 </head>
 <body>
@@ -1010,6 +1022,17 @@ function goList(kind,k){const f=LF0();f.ind=S.fInds.slice();f.job=S.fJobs.slice(
   S.lf=f;S.lq='';S.view='list';S.lSort=kind==='wait'?'sub':'date';S.lDir=-1;render();window.scrollTo(0,0)}
 
 /* ================= 분석 ================= */
+/* 분석: 조건을 고르면 아래에서 올라오는 바 (걸린 조건 + 목록 보기) */
+const PRESET_NAME={month:'이번 달','3m':'최근 3개월',year:'올해'};
+function cbar(n){
+  const per=S.recFrom||S.recTo?(PRESET_NAME[S.recPreset]||`${S.recFrom?S.recFrom.slice(2).replace(/-/g,'.'):'처음'} ~ ${S.recTo?S.recTo.slice(2).replace(/-/g,'.'):'지금'}`):'';
+  const chips=[...(per?[`<button class="fchip" data-act="rec-preset" data-v="all" title="기간 지우기">기간: ${esc(per)} ✕</button>`]:[]),
+    ...S.fJobs.map(v=>`<button class="fchip" data-act="rec-f" data-k="job" data-v="${esc(v)}">직무: ${esc(v)} ✕</button>`),
+    ...S.fInds.map(v=>`<button class="fchip" data-act="rec-f" data-k="ind" data-v="${esc(v)}">업권: ${esc(v)} ✕</button>`)];
+  if(!chips.length){S.cbarOn=false;return ''}
+  const enter=!S.cbarOn;S.cbarOn=true;
+  return `<div class="cbar ${enter?'enter':''}"><div class="cb-chips">${chips.join('')}<span class="muted small cb-n">지원 ${n}건</span></div>
+   <div class="cb-btns"><button class="btn sm" data-act="cbar-clear">조건 지우기</button><button class="btn sm primary" data-act="to-list" data-v="sub">목록 보기 ›</button></div></div>`}
 function recHTML(){
   const all=vis(S.who),ps=all.filter(p=>recPass(p));
   const sub=ps.filter(isSub);
@@ -1024,10 +1047,11 @@ function recHTML(){
   const rate=decided.length?Math.round(passed.length/decided.length*100):0;
   const cntOf=(list,f)=>{const o={};list.forEach(p=>{const k=f(p);o[k]=(o[k]||0)+1});return o};
   const fail={};ps.filter(p=>p.stage==='종료'&&p.failAt).forEach(p=>fail[p.failAt]=(fail[p.failAt]||0)+1);
-  const bars=(o,kind,sel)=>{const e=Object.entries(o).sort((a,b)=>b[1]-a[1]);const mx=Math.max(1,...e.map(x=>x[1]));
+  const FORD=['서류','인적성','필기','면접','1차 면접','2차 면접','3차 면접','최종 면접'],fo=k=>{const i=FORD.indexOf(k);return i<0?99:i};
+  const bars=(o,kind,sel)=>{const e=Object.entries(o).sort((a,b)=>kind==='fail'?fo(a[0])-fo(b[0])||b[1]-a[1]:b[1]-a[1]);const mx=Math.max(1,...e.map(x=>x[1]));
     return e.length?`<div class="bars">${e.map(([k,v])=>{const on=sel&&sel.includes(k),dim=sel&&sel.length&&!on;
-      const at=kind==='fail'?`role="button" tabindex="0" data-act="to-list" data-v="fail" data-k="${esc(k)}" title="이 단계에서 끝난 공고 보기"`:`role="button" tabindex="0" data-act="rec-f" data-k="${kind}" data-v="${esc(k)}" title="눌러서 ${on?'선택 해제':'이 조건으로 보기'}"`;
-      return `<div class="bar pick ${on?'on':''} ${dim?'dim':''}" ${at}><span class="oneline">${esc(k)}</span><span class="track"><span class="fill" style="width:${v/mx*100}%"></span></span><span class="num">${v}</span></div>`}).join('')}</div>`:'<div class="muted small">아직 없어요</div>'};
+      const at=kind==='fail'?'':`role="button" tabindex="0" data-act="rec-f" data-k="${kind}" data-v="${esc(k)}" title="눌러서 ${on?'선택 해제':'이 조건으로 보기'}"`;
+      return `<div class="bar ${kind==='fail'?'':'pick'} ${on?'on':''} ${dim?'dim':''}" ${at}><span class="oneline">${esc(k)}</span><span class="track"><span class="fill" style="width:${v/mx*100}%"></span></span><span class="num">${v}</span></div>`}).join('')}</div>`:'<div class="muted small">아직 없어요</div>'};
   /* 직무별은 업권 조건만, 업권별은 직무 조건만 걸고 셈 → 다른 항목도 계속 고를 수 있게 */
   const jobBars=bars(cntOf(all.filter(p=>recPass(p,'job')).filter(isSub),jobKey),'job',S.fJobs);
   const indBars=bars(cntOf(all.filter(p=>recPass(p,'ind')).filter(isSub),indKey),'ind',S.fInds);
@@ -1057,14 +1081,14 @@ function recHTML(){
      return `<tr data-act="to-list" data-v="cat" data-k="${RT}|${esc(k)}" title="${esc(k)} 공고 목록 보기"><td>${esc(k)}</td><td class="num">${g.n}</td><td class="num hide-n">${g.d}</td><td class="num">${g.ok}</td><td><div class="rate ${few?'few':''}"><span class="track"><span class="fill" style="width:${r||0}%"></span></span><span class="num">${r===null?'-':r+'%'}</span>${few?'<span class="muted small">표본 적음</span>':''}</div></td></tr>`}).join('')||'<tr><td colspan="5" class="muted">아직 없어요</td></tr>'}</tbody></table></div>`;
   return `${roBanner()}<div class="view-head"><h2>${esc(nm(S.who))}의 지원 분석</h2></div>
   <section class="sec"><h3>지금 진행 현황</h3><div class="prog">${prog}</div></section>
-  ${period}${chipH}
+  ${period}
   <div class="stats"><div class="stat link" role="button" tabindex="0" data-act="to-list" data-v="sub" title="이 공고들 보기"><div class="k">지원한 공고 <span class="go">목록 ›</span></div><div class="v">${sub.length}<small>건</small></div><div class="k"><button class="link-btn small" data-act="to-list" data-v="wait">결과 대기 ${wait}건 ›</button></div></div>
    <div class="stat link" role="button" tabindex="0" data-act="to-list" data-v="sub" title="이 공고들 보기"><div class="k">서류 통과율 <span class="go">목록 ›</span></div><div class="v">${rate}<small>% (${passed.length}/${decided.length})</small></div><div class="k">서류 결과가 나온 공고 기준</div></div>
-   <div class="stat"><div class="k">떨어지거나 그만둔 단계 <span class="muted">· 누르면 목록</span></div>${bars(fail,'fail')}</div></div>
+   <div class="stat"><div class="k">떨어지거나 그만둔 단계</div>${bars(fail,'fail')}</div></div>
   <div class="stats two"><div class="stat"><div class="k">직무별 지원 <span class="muted">· 눌러서 고르기</span></div>${jobBars}</div><div class="stat"><div class="k">업권별 지원 <span class="muted">· 눌러서 고르기</span></div>${indBars}</div></div>
   <div class="stats two"><div class="stat"><div class="k">단계별 깔때기</div>${funH}</div><div class="stat"><div class="k">월별 지원 추이 <span class="muted">· 막대 누르면 그달 목록</span></div>${monH}</div></div>
   <div class="stat" style="margin-bottom:14px"><div class="k">분류별 서류 통과율 <span class="muted">· 결과 3건 미만은 흐리게 · 줄 누르면 목록</span></div>${rateH}</div>
-  <div style="text-align:right;margin-top:4px"><button class="btn sm" data-act="to-list" data-v="sub">이 조건의 공고 목록 보기 ›</button></div>`;
+  ${cbar(sub.length)}`;
 }
 
 /* ================= S4 공고 상세 ================= */
@@ -1368,7 +1392,7 @@ window.addEventListener('resize',()=>{clearTimeout(markFades.t);markFades.t=setT
 function render(){
   if(!S.me){main.innerHTML='';app.classList.add('starting');renderLayer();return}
   app.classList.remove('starting');
-  renderNav();main.innerHTML=S.view==='home'?homeHTML():S.view==='board'?boardHTML():S.view==='cal'?calHTML():S.view==='list'?listHTML():recHTML();renderLayer();
+  renderNav();if(S.view!=='rec')S.cbarOn=false;main.innerHTML=S.view==='home'?homeHTML():S.view==='board'?boardHTML():S.view==='cal'?calHTML():S.view==='list'?listHTML():recHTML();app.classList.toggle('has-cbar',!!main.querySelector('.cbar'));renderLayer();
   requestAnimationFrame(()=>{if(S.view==='cal')fitCells();markFades()});
 }
 
@@ -1384,6 +1408,7 @@ document.addEventListener('click',e=>{
     case 'theme':toggleTheme();break;
     case 'rec-preset':recPreset(v);render();break;
     case 'rec-f':{const arr=t.dataset.k==='job'?S.fJobs:S.fInds;const i=arr.indexOf(v);if(i>=0)arr.splice(i,1);else arr.push(v);render();break}
+    case 'cbar-clear':S.fJobs=[];S.fInds=[];recPreset('all');render();break;
     case 'rate-tab':S.rateTab=v;render();break;
     case 'rec-f-clear':S.fJobs=[];S.fInds=[];render();break;
     case 'to-list':e.stopPropagation();goList(v,t.dataset.k);break;
