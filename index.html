@@ -484,6 +484,41 @@ mark[data-cs]{cursor:pointer}
 .cal-side{height:calc(100vh - 175px);height:calc(100dvh - 175px);min-height:600px;overflow-y:auto}
 .cal-side .sec.nod{margin-top:auto;position:sticky;bottom:0;background:var(--bg);padding-top:8px}
 @container app (max-width:760px){.cal-side{height:auto;min-height:0;overflow:visible}.cal-side .sec.nod{position:static;margin-top:0}}
+
+/* ===== 정리: 차분하게 ===== */
+/* E. 넓은 화면은 최대 폭 */
+.shell{max-width:1760px;margin-inline:auto;width:100%}
+/* 달력 칸 폭에 따라 내용 줄이기 (좁으면 회사명만) */
+.cal{container:cal/inline-size}
+@container cal (max-width:1100px){.cal .ev .ty,.cal .ev .jb{display:none}}
+/* 오른쪽 칸: 노트북에선 조금 좁게 */
+@container app (max-width:1500px){.cal-wrap{grid-template-columns:minmax(0,1fr) 260px}}
+/* A. 일정: 꽉 찬 색 막대 → 작은 색 점 + 보통 글자 */
+.cal .ev[class*="st-"]{background:transparent;color:var(--fg);padding:1px 2px 1px 13px;position:relative;border-radius:4px}
+.cal .ev[class*="st-"]::before{content:"";position:absolute;left:3px;top:50%;width:7px;height:7px;border-radius:50%;background:var(--col);transform:translateY(-50%)}
+.cal .ev[class*="st-"]:hover{background:var(--surface-2)}
+.cal .ev .ty{color:var(--muted);opacity:1;font-weight:500;margin-right:2px}
+.cal .ev.k-due{font-weight:600}
+/* B. 오늘: 날짜 숫자만 강조, 고른 날은 은은한 바탕 */
+.cell.sel{box-shadow:none;background:var(--surface-2)}
+/* C. 오른쪽: 상자 없이 줄로만 */
+.cal-side .list{gap:0}
+.cal-side .row{border:0;border-radius:8px;background:transparent;padding:8px 6px}
+.cal-side .row.click:hover{background:var(--surface-2)}
+.cal-side .empty{border:0;padding:2px 6px;font-size:12.5px}
+.cal-side .dd{min-width:44px;font-size:12px;padding:2px 6px}
+.cal-side .minis{border:0;border-top:1px solid var(--line);border-radius:0}
+.cal-side .mini-row{padding:6px 6px;border-bottom:0;color:var(--muted)}
+.cal-side .mini-row:hover{color:var(--fg)}
+/* 휴대폰 달력 칸도 점 방식 */
+@container app (max-width:760px){.cal .grid7 .ev[class*="st-"]{padding:0 1px 0 9px}.cal .grid7 .ev[class*="st-"]::before{left:1px;width:6px;height:6px}}
+
+/* PC에서 메뉴를 접으면: 동그라미 대신 위쪽 바에 + 공고 추가 */
+.top-add{display:none;white-space:nowrap}
+.app.side-off .top-add{display:inline-block}
+.app.side-off .fab{display:none}
+.app.ro .top-add{display:none}
+@container app (max-width:760px){.app.side-off .top-add{display:none}.app.side-off .fab,.fab{display:grid}}
 </style>
 </head>
 <body>
@@ -492,6 +527,7 @@ mark[data-cs]{cursor:pointer}
   <header class="top">
     <button class="icon-btn side-tg" data-act="side-tg" aria-label="왼쪽 메뉴 접기·펴기" title="메뉴 접기·펴기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M9 4v16"/></svg></button>
     <button class="prof" id="profBtn" data-act="prof-menu" aria-label="사용자 전환"><i></i><span class="nm" id="profName"></span> ▾</button>
+    <button class="btn sm primary top-add" data-act="add">+ 공고 추가</button>
     <span class="peek-on" id="peekOn"></span>
     <span class="sync" id="sync" aria-live="polite"></span>
     <button class="btn sm peek" id="peekBtn" data-act="peek"></button>
@@ -640,7 +676,7 @@ function errMsg(e){const c=e&&e.code;return {network:'인터넷 연결을 확인
   too_long:'공고가 너무 길어요. 필요한 부분만 붙여넣어 주세요',parse_error:'정리 결과를 읽지 못했어요. 다시 시도해 주세요'}[c]||('문제가 생겼어요 ('+(c||'알 수 없음')+')')}
 
 /* ================= 상태 · 도우미 ================= */
-const S={sideOff:LS.get('sideOff',false),me:null,who:null,view:'cal',boardCol:'작성중',fInd:'',fJob:'',bQ:'',bSort:'due',endOpen:{},calY:T0.getFullYear(),calM:T0.getMonth(),calSel:TODAY,calMode:'month',overlay:false,recQ:'',
+const S={sideOff:(()=>{const v=LS.get('sideOff',null);return v===null?window.innerWidth<1500:v})(),me:null,who:null,view:'cal',boardCol:'작성중',fInd:'',fJob:'',bQ:'',bSort:'due',endOpen:{},calY:T0.getFullYear(),calM:T0.getMonth(),calSel:TODAY,calMode:'month',overlay:false,recQ:'',
   recFrom:'',recTo:'',recPreset:'all',open:null,ed:null,dlg:null,add:null,addDraft:null,form:null,delAsk:false,undo:null,editQ:null,sel:null,replyTo:null,showRes:{},flash:null,busy:false};
 const $=s=>document.querySelector(s);
 const app=$('#app'),main=$('#main'),layer=$('#layer');
@@ -655,7 +691,7 @@ const upd=p=>p.updated||p.hist[p.hist.length-1].d;
 const isOpen=p=>p.stage==='관심'||p.stage==='작성중';
 const shortCo=s=>String(s||'').replace(/\(주\)|㈜|주식회사/g,'').replace(/\s*\([^)]*\)/g,'').trim();
 const shortRole=s=>String(s||'').replace(/\s*\([^)]*\)/g,'').trim();
-const label=p=>`[${shortCo(p.co)}] ${shortRole(p.role||p.job)}`;
+const label=p=>`${shortCo(p.co)} · ${shortRole(p.role||p.job)}`;
 const full=p=>`[${String(p.co).trim()}] ${p.role||p.job}`;
 function evsOf(p){const a=(p.events||[]).map(e=>Object.assign({},e));if(p.dueKind==='확정'&&p.due&&p.stage!=='종료')a.push({d:p.due.slice(0,10),k:'due',t:'서류 마감 '+p.due.slice(11,16)});return a}
 function nextEv(p){return (p.events||[]).filter(e=>diff(e.d)>=0).sort((a,b)=>a.d.localeCompare(b.d))[0]}
@@ -767,7 +803,7 @@ function calHTML(){
       body=`<div class="weeklist">${cells.map(k=>{const ev=evm[k]||[];return `<div class="wrow ${k===TODAY?'today':''}"><div class="wday"><b>${WD[dt(k).getDay()]}</b><span class="num">${md(k).replace(/\(.\)/,'')}</span></div><div class="list">${ev.length?ev.map(evRow).join(''):'<span class="muted small">—</span>'}</div></div>`}).join('')}</div>${legend}`;
     }else{
       body=`<div class="grid7" style="grid-template-rows:auto repeat(${cells.length/7},minmax(0,1fr))">${WD.map((w,i)=>`<div class="wd ${i===0?'sun':i===6?'sat':''}">${w}</div>`).join('')}${cells.map(k=>{const ev=evm[k]||[];const oth=mode==='month'&&dt(k).getMonth()!==S.calM;
-        return `<button class="cell ${oth?'other':''} ${k===TODAY?'today':''} ${k===S.calSel?'sel':''} ${mode==='week'?'week':''}" data-act="cal-day" data-v="${k}"><span class="n">${dt(k).getDate()}</span>${ev.map(x=>`<span class="ev k-${x.e.k} st-${STK[x.p.stage]||'start'} ${x.w!==S.who?'p':''}" title="${esc(COLNAME[x.p.stage]+' · '+(KIND[x.e.k]||KIND.etc)[1]+' · '+full(x.p))}">${nar&&mode==='month'?`<span class="tx">${esc(shortName(x.p))}</span>`:`<span class="tx">${x.p.type?`<span class="ty">[${esc(x.p.type)}]</span>`:''}<b>${esc(shortCo(x.p.co))}</b> ${esc(x.p.job||shortRole(x.p.role))}</span>`}</span>`).join('')}</button>`}).join('')}</div>${legend}`;
+        return `<button class="cell ${oth?'other':''} ${k===TODAY?'today':''} ${k===S.calSel?'sel':''} ${mode==='week'?'week':''}" data-act="cal-day" data-v="${k}"><span class="n">${dt(k).getDate()}</span>${ev.map(x=>`<span class="ev k-${x.e.k} st-${STK[x.p.stage]||'start'} ${x.w!==S.who?'p':''}" title="${esc(COLNAME[x.p.stage]+' · '+(KIND[x.e.k]||KIND.etc)[1]+' · '+full(x.p))}">${nar&&mode==='month'?`<span class="tx">${esc(shortName(x.p))}</span>`:`<span class="tx">${x.p.type?`<span class="ty">[${esc(x.p.type)}]</span>`:''}<b>${esc(shortCo(x.p.co))}</b><span class="jb"> ${esc(x.p.job||shortRole(x.p.role))}</span></span>`}</span>`).join('')}</button>`}).join('')}</div>${legend}`;
     }
   }
   side=calSide(evm,mode,nar);
