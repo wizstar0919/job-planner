@@ -19,11 +19,11 @@ const SCHEMA = {
     ['link','공고 링크'],['relLink','관련 자료'],['applyStart','접수 시작'],['dueKind','마감 종류'],['due','마감'],['recheck','재확인일'],
     ['stage','단계'],['result','결과'],['failAt','탈락 단계'],['submitted','제출일'],['steps','전형 절차'],['cur','현재 전형'],
     ['memo','비고'],['src','등록 경로'],['created','생성일'],['updated','수정일'],['short','달력 표시 이름']] },
-  qs: { tab: '문항', cols: [['id','id'],['pid','공고 id'],['i','순번'],['t','문항'],['n','글자 수'],['a','답변'],['st','상태'],['lock','잠금']] },
+  qs: { tab: '문항', cols: [['id','id'],['pid','공고 id'],['i','순번'],['t','문항'],['n','글자 수'],['a','답변'],['st','상태'],['lock','잠금'],['ver','버전']] },
   events: { tab: '일정', cols: [['id','id'],['pid','공고 id'],['d','날짜'],['k','종류'],['t','내용']] },
   tasks: { tab: '할 일', cols: [['id','id'],['pid','공고 id'],['t','내용'],['due','기한'],['done','완료'],['doneAt','완료일'],['auto','자동']] },
   comments: { tab: '댓글', cols: [['id','id'],['pid','공고 id'],['qi','문항 번호'],['quote','고른 문장'],['text','내용'],['by','작성자'],['at','작성일'],
-    ['replies','답글'],['resolved','해결'],['read','읽음']] },
+    ['replies','답글'],['resolved','해결'],['read','읽음'],['ver','버전']] },
   hist: { tab: '이력', cols: [['id','id'],['pid','공고 id'],['d','날짜'],['t','내용']] },
   settings: { tab: '설정', cols: [['k','항목'],['v','값']] }
 };

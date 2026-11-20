@@ -564,18 +564,18 @@ mark[data-cs]{cursor:pointer}
 .mcol .mbar{position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:min(24px,70%);background:var(--accent-soft);border-radius:4px 4px 0 0;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end}
 .mcol .mok{display:block;width:100%;background:var(--accent)}
 .mcol .ml{font-size:10.5px;color:var(--muted);white-space:nowrap}
-.legend{display:flex;gap:14px;margin-top:8px;color:var(--muted)}
-.legend .lg{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
-.lg.a{background:var(--accent-soft);border:1px solid var(--accent)}
-.lg.b{background:var(--accent)}
+.mlegend{display:flex;gap:14px;margin-top:8px;color:var(--muted)}
+.mlegend .mlg{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.mlg.a{background:var(--accent-soft);border:1px solid var(--accent)}
+.mlg.b{background:var(--accent)}
 .rate{display:flex;align-items:center;gap:8px}
 .rate .track{display:block;flex:1;max-width:180px;height:8px;background:var(--surface-2);border-radius:4px;overflow:hidden}
 .rate .fill{display:block;height:100%;background:var(--accent);border-radius:0 4px 4px 0}
 .rate .num{min-width:36px;text-align:right;font-family:var(--f-num)}
 .rate.few{opacity:.45}
 @container app (max-width:760px){.rtable .hide-n{display:none}table.rtable{min-width:0}.rate .muted{display:none}}
-.mcol .mbar,.lg.a{background:color-mix(in srgb,var(--accent) 32%,transparent)}
-.lg.a{border:0}
+.mcol .mbar,.mlg.a{background:color-mix(in srgb,var(--accent) 32%,transparent)}
+.mlg.a{border:0}
 
 /* 분석 조건 바 (아래 고정) */
 .cbar{position:sticky;bottom:12px;z-index:20;margin-top:16px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
@@ -691,12 +691,12 @@ function build(w,t){
     short:r.short||'',applyStart:r.applyStart||'',dueKind:r.dueKind||'미확인',due:r.due||null,recheck:r.recheck||'',stage:r.stage||'관심',result:r.result||'',failAt:r.failAt||'',submitted:r.submitted||'',
     steps:(r.steps||'서류').split('>').map(s=>s.trim()).filter(Boolean),cur:+r.cur||0,memo:r.memo||'',src:r.src||'',created:r.created||'',updated:r.updated||'',qs:[],tasks:[],events:[],hist:[],comments:[]}));
   const by=Object.fromEntries(posts.map(p=>[p.id,p]));
-  (t.qs||[]).slice().sort((a,b)=>(+a.i)-(+b.i)).forEach(r=>{const p=by[r.pid];if(p)p.qs.push({id:r.id,t:r.t||'',n:+r.n||0,a:r.a||'',st:r.st||'미작성',lock:r.lock==='Y'})});
+  (t.qs||[]).slice().sort((a,b)=>(+a.i)-(+b.i)).forEach(r=>{const p=by[r.pid];if(p)p.qs.push({id:r.id,t:r.t||'',n:+r.n||0,a:r.a||'',st:r.st||'미작성',lock:r.lock==='Y',ver:r.ver||''})});
   (t.events||[]).forEach(r=>{const p=by[r.pid];if(p)p.events.push({id:r.id,d:r.d,k:r.k||'etc',t:r.t||''})});
   (t.tasks||[]).forEach(r=>{const o={id:r.id,t:r.t||'',due:r.due||'',done:r.done==='Y',doneAt:r.doneAt||'',auto:r.auto==='Y'};if(r.pid&&by[r.pid])by[r.pid].tasks.push(o);else P0.tasks.push(o)});
   (t.hist||[]).forEach(r=>{const p=by[r.pid];if(p)p.hist.push({id:r.id,d:r.d,t:r.t})});
   (t.comments||[]).forEach(r=>{const p=by[r.pid];if(!p)return;let rep=[];try{rep=JSON.parse(r.replies||'[]')}catch(e){}
-    p.comments.push({id:r.id,qi:r.qi===''?-1:+r.qi,quote:r.quote||'',text:r.text||'',by:r.by||'',at:r.at||'',replies:rep,resolved:r.resolved==='Y',read:r.read==='Y'})});
+    p.comments.push({id:r.id,qi:r.qi===''?-1:+r.qi,quote:r.quote||'',text:r.text||'',by:r.by||'',at:r.at||'',replies:rep,resolved:r.resolved==='Y',read:r.read==='Y',ver:r.ver||''})});
   posts.forEach(p=>{if(p.stage==='전형'||!COLNAME[p.stage])p.stage=p.stage==='전형'?stageOfStep(p.steps[p.cur]):'관심'});
   posts.forEach(p=>{p.hist.sort((a,b)=>String(a.d).localeCompare(String(b.d)));if(!p.hist.length)p.hist=[{id:uid(),d:p.created||TODAY,t:'등록'}]});
   (t.settings||[]).forEach(r=>{try{if(r.k==='jobs')P0.jobs=JSON.parse(r.v);if(r.k==='inds')P0.inds=JSON.parse(r.v);if(r.k==='auto')P0.auto=Object.assign({...DEFAULT_AUTO},JSON.parse(r.v))}catch(e){}});
@@ -705,11 +705,11 @@ function build(w,t){
 function setData(data){['me','gh'].forEach(w=>{Object.assign(DB[w],build(w,data[w]))});loaded=true}
 const postRow=p=>({id:p.id,co:p.co,job:p.job,role:p.role,type:p.type,ind:p.ind,loc:p.loc,link:p.link,relLink:p.relLink,applyStart:p.applyStart,dueKind:p.dueKind,due:p.due||'',recheck:p.recheck,
   stage:p.stage,result:p.result,failAt:p.failAt,submitted:p.submitted,steps:p.steps.join(' > '),cur:p.cur,memo:p.memo,short:p.short||'',src:p.src||'',created:p.created||TODAY,updated:new Date().toISOString().slice(0,16)});
-const cRow=(p,c)=>({id:c.id,pid:p.id,qi:c.qi<0?'':c.qi,quote:c.quote,text:c.text,by:c.by,at:c.at,replies:JSON.stringify(c.replies||[]),resolved:Y(c.resolved),read:Y(c.read)});
+const cRow=(p,c)=>({id:c.id,pid:p.id,qi:c.qi<0?'':c.qi,quote:c.quote,text:c.text,by:c.by,at:c.at,replies:JSON.stringify(c.replies||[]),resolved:Y(c.resolved),read:Y(c.read),ver:c.ver||''});
 function bundleOps(p){
   p.qs.forEach(q=>{if(!q.id)q.id=uid()});p.events.forEach(e=>{if(!e.id)e.id=uid()});p.tasks.forEach(t=>{if(!t.id)t.id=uid()});p.hist.forEach(h=>{if(!h.id)h.id=uid()});
   return [{op:'upsert',table:'posts',rows:[postRow(p)]},
-    {op:'replace',table:'qs',key:'pid',value:p.id,rows:p.qs.map((q,i)=>({id:q.id,pid:p.id,i,t:q.t,n:q.n,a:q.a,st:q.st,lock:Y(q.lock)}))},
+    {op:'replace',table:'qs',key:'pid',value:p.id,rows:p.qs.map((q,i)=>({id:q.id,pid:p.id,i,t:q.t,n:q.n,a:q.a,st:q.st,lock:Y(q.lock),ver:q.ver||''}))},
     {op:'replace',table:'events',key:'pid',value:p.id,rows:p.events.map(e=>({id:e.id,pid:p.id,d:e.d,k:e.k,t:e.t}))},
     {op:'replace',table:'tasks',key:'pid',value:p.id,rows:p.tasks.map(t=>({id:t.id,pid:p.id,t:t.t,due:t.due,done:Y(t.done),doneAt:t.doneAt||'',auto:Y(t.auto)}))},
     {op:'replace',table:'hist',key:'pid',value:p.id,rows:p.hist.map(h=>({id:h.id,pid:p.id,d:h.d,t:h.t}))}];
@@ -1080,7 +1080,7 @@ function recHTML(){
     while(y<ey||(y===ey&&m<=em)){const k=y+'-'+String(m).padStart(2,'0');months.push([k,mon[k]||{n:0,ok:0}]);if(++m>12){m=1;y++}}}
   const mmax=Math.max(1,...months.map(x=>x[1].n));
   const monH=months.length?`<div class="months">${months.map(([k,o],i)=>`<div class="mcol" title="${k.slice(2).replace('-','.')} · 지원 ${o.n}건 · 서류 통과 ${o.ok}건"><span class="mv">${o.n||''}</span><span class="mbox"><span class="mbar" style="height:${o.n/mmax*100}%"><span class="mok" style="height:${o.n?o.ok/o.n*100:0}%"></span></span></span><span class="ml">${i===0||k.slice(5)==='01'?k.slice(2,4)+'.':''}${+k.slice(5)}월</span></div>`).join('')}</div>
-   <div class="legend small"><span><i class="lg a"></i>지원</span><span><i class="lg b"></i>그중 서류 통과</span></div>`:'<div class="muted small">아직 없어요</div>';
+   <div class="mlegend small"><span><i class="mlg a"></i>지원</span><span><i class="mlg b"></i>그중 서류 통과</span></div>`:'<div class="muted small">아직 없어요</div>';
   /* ③ 분류별 서류 통과율 */
   const RT=S.rateTab,keyF=RT==='job'?jobKey:RT==='ind'?indKey:(p=>p.type||'(미분류)');
   const grp={};sub.forEach(p=>{const k=keyF(p),g=grp[k]=grp[k]||{n:0,d:0,ok:0};g.n++;if(p.stage!=='제출'){g.d++;if(passOf(p))g.ok++}});
@@ -1118,7 +1118,7 @@ function hl(text,cs){
 }
 function cmtH(p,c,lostIds){
   return `<div class="cmt ${c.resolved?'res':''} ${S.flash===c.id?'flash':''}" id="c-${c.id}">
-   <div><span class="who">${esc(nm(c.by)||c.by||'노션')}</span> <span class="muted small">${md(c.at)}</span>${c.resolved?' <span class="pill mute">해결</span>':''}</div>
+   <div><span class="who">${esc(nm(c.by)||c.by||'노션')}</span> <span class="muted small">${md(c.at)}${c.ver?` · ${esc(c.ver)}에 단 댓글`:''}</span>${c.resolved?' <span class="pill mute">해결</span>':''}</div>
    ${c.quote?`<div class="q-quote">“${esc(c.quote)}”${lostIds.includes(c.id)?' <span class="lost">· 원래 문장 (지금은 수정됨)</span>':''}</div>`:''}
    <div style="white-space:pre-wrap">${esc(c.text)}</div>
    ${c.replies.map(r=>`<div class="rep"><span class="who">${esc(nm(r.by)||r.by)}</span> ${esc(r.text)}</div>`).join('')}
@@ -1195,7 +1195,7 @@ function detailHTML(p){
    <div class="blk"><div class="blk-h">공고 댓글 <span class="count">${pcs.filter(c=>!c.resolved).length}</span></div>${pcs.length?cmtList(p,pcs,[],p.id+':p'):''}
     <div class="inline"><input type="text" id="pcTxt" placeholder="${r?esc(nm(owner(p)))+' 님에게 의견 남기기':'메모나 의견 남기기'}"><button class="btn sm" data-act="add-pc">등록</button></div></div>
    <div class="blk"><div class="blk-h">이력</div><div class="hist">${p.hist.slice().reverse().map(h=>`<div><span class="num">${String(h.d).slice(5,10).replace('-','/')}</span>${esc(h.t)}</div>`).join('')}</div></div>
-   <div class="blk"><div class="blk-h">자소서 문항 · 답변 <span class="muted">${p.qs.length?`제출본 ${p.qs.filter(q=>q.st==='제출본').length}/${p.qs.length}`:''}</span></div>
+   <div class="blk"><div class="blk-h">자소서 문항 · 답변 ${(p.qs.find(q=>q.ver)||{}).ver?`<span class="pill">${esc(p.qs.find(q=>q.ver).ver)}</span>`:''} <span class="muted">${p.qs.length?`제출본 ${p.qs.filter(q=>q.st==='제출본').length}/${p.qs.length}`:''}</span></div>
     ${ed?ed.qs.map((q,i)=>qEdit(q,i)).join('')+'<button class="btn sm" style="align-self:flex-start" data-act="ed-q-add">+ 문항 추가</button>'
        :(p.qs.map((q,i)=>qBlock(p,q,i,r)).join('')||'<div class="muted small">문항이 없어요'+(r?'':' · [정보 수정]에서 추가할 수 있어요')+'</div>')}</div>
    ${ed?`<div class="blk"><div class="inline" style="justify-content:flex-end"><button class="btn" data-act="ed-cancel">취소</button><button class="btn primary" data-act="ed-save">저장</button></div>
@@ -1497,7 +1497,7 @@ document.addEventListener('click',e=>{
     case 'pin-c':showPop(t,true);break;
     case 'pop-close':hidePop();break;
     case 'sel-c':if(p&&S.sel)commentDlg(p,S.sel.qi,S.sel.quote);break;
-    case 'c-ok':if(p&&S.sel){const x=$('#cTxt').value.trim();if(!x){toast('댓글 내용을 적어 주세요');break}const c={id:uid(),qi:S.sel.qi,quote:S.sel.quote,text:x,by:S.me,at:TODAY,replies:[],resolved:false,read:mine(p)};p.comments.push(c);dirtyC(p,c);S.sel=null;S.dlg=null;S.flash=c.id;render();toast(mine(p)?'댓글을 달았어요':`${nm(owner(p))} 님에게 댓글을 남겼어요`)}break;
+    case 'c-ok':if(p&&S.sel){const x=$('#cTxt').value.trim();if(!x){toast('댓글 내용을 적어 주세요');break}const c={id:uid(),qi:S.sel.qi,quote:S.sel.quote,text:x,by:S.me,at:TODAY,replies:[],resolved:false,read:mine(p),ver:((p.qs[S.sel.qi]||{}).ver||'').split(' · ')[0]};p.comments.push(c);dirtyC(p,c);S.sel=null;S.dlg=null;S.flash=c.id;render();toast(mine(p)?'댓글을 달았어요':`${nm(owner(p))} 님에게 댓글을 남겼어요`)}break;
     case 'add-pc':if(p){const x=$('#pcTxt').value.trim();if(!x){toast('내용을 적어 주세요');break}const c={id:uid(),qi:-1,quote:'',text:x,by:S.me,at:TODAY,replies:[],resolved:false,read:mine(p)};p.comments.push(c);dirtyC(p,c);render();toast('댓글을 남겼어요')}break;
     case 'reply':S.replyTo=S.replyTo===t.dataset.c?null:t.dataset.c;if(t.closest('#cpop')){const pp=document.getElementById('cpop');S.pin=(pp.dataset.ids||'').split(' ')[0]||S.pin}renderLayer();{const r=$('#rTxt');if(r)r.focus()}break;
     case 'reply-ok':if(p){const c=p.comments.find(x=>x.id===t.dataset.c);const x=$('#rTxt').value.trim();if(c&&x){c.replies.push({text:x,by:S.me,at:TODAY});if(owner(p)!==S.me)c.read=false;dirtyC(p,c);S.replyTo=null;render()}}break;
