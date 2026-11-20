@@ -77,7 +77,7 @@ const saveCfg=()=>LS.set('cfg',cfg);
 /* ================= 데이터 ================= */
 const emptyPerson=w=>({name:NAMES[w],jobs:[...BASEJOBS],inds:[...INDS],auto:{...DEFAULT_AUTO},tasks:[],posts:[]});
 const DB={me:emptyPerson('me'),gh:emptyPerson('gh')};
-let loaded=false,usage={used:0,limit:30,hasKey:false},sheets={};
+let loaded=false,usage=Object.assign({used:0,limit:30,hasKey:null},LS.get('usage',{})),sheets={};/* hasKey: null=아직 모름(막지 않음), false=서버가 없다고 함 */
 const Y=b=>b?'Y':'';
 function build(w,t){
   const P0=emptyPerson(w);if(!t)return P0;
@@ -146,7 +146,7 @@ function cacheData(){/* 서버 형식으로 다시 만들어 기기에 보관 */
 }
 async function refresh(quiet){
   if(queue.size||saving)return;
-  try{const j=await api('loadAll');setData(j.data);raw=j.data;LS.set('cache',{at:Date.now(),data:j.data});if(j.usage)usage=j.usage;if(j.sheets)sheets=j.sheets;
+  try{const j=await api('loadAll');setData(j.data);raw=j.data;LS.set('cache',{at:Date.now(),data:j.data});if(j.usage){usage=j.usage;LS.set('usage',usage)}if(j.sheets)sheets=j.sheets;
     if(S.me&&!S.dlg&&!S.editQ&&!(document.activeElement&&/INPUT|TEXTAREA/.test(document.activeElement.tagName)))render()}
   catch(e){if(!quiet)toast(errMsg(e))}
 }
@@ -238,7 +238,7 @@ async function enter(w){
   const r=$('#remember');if(r)cfg.remember=r.checked;
   if(pw)cfg.pw=pw.value.trim();
   S.busy=true;renderLayer();
-  try{const j=await api('loadAll');setData(j.data);raw=j.data;LS.set('cache',{at:Date.now(),data:j.data});if(j.usage)usage=j.usage;if(j.sheets)sheets=j.sheets}
+  try{const j=await api('loadAll');setData(j.data);raw=j.data;LS.set('cache',{at:Date.now(),data:j.data});if(j.usage){usage=j.usage;LS.set('usage',usage)}if(j.sheets)sheets=j.sheets}
   catch(e){S.busy=false;if(e.code==='bad_password'||e.code==='locked'){cfg.pw='';saveCfg()}if(e.code==='no_server'){cfg.server=''}
     renderLayer();const m=msg();if(m){m.textContent=errMsg(e);m.className='late small'}return}
   S.busy=false;cfg.me=w;saveCfg();
@@ -687,7 +687,7 @@ function setStage(p,st){
 function settingsDlg(){const w=S.me;show(()=>dlgHead('설정 · '+esc(nm(w)))+`<div class="dlg-b" style="gap:0">
   <div class="set-row"><div><b>앱 비밀번호</b><div class="muted small">두 사람이 같이 쓰는 비밀번호</div></div><span class="ok-t">✅ 이 기기에 저장됨</span></div>
   <div class="set-row"><div><b>이 기기에서 바로 들어가기</b><div class="muted small">켜면 시작 화면 없이 ${esc(nm(w))} 화면으로</div></div><input type="checkbox" class="chk" id="remember2" ${cfg.remember?'checked':''} aria-label="바로 들어가기"></div>
-  <div class="set-row"><div><b>공고 정리</b><div class="muted small">${usage.hasKey?`오늘 ${usage.used} / ${usage.limit}회 사용`:'API 키가 아직 연결되지 않았어요'}</div></div>${sheets[w]?`<a class="link-btn" href="${esc(sheets[w])}" target="_blank" rel="noopener">${esc(nm(w))} 시트 열기 ↗</a>`:''}</div>
+  <div class="set-row"><div><b>공고 정리</b><div class="muted small">${usage.hasKey===false?'API 키가 아직 연결되지 않았어요':`오늘 ${usage.used} / ${usage.limit}회 사용`}</div></div>${sheets[w]?`<a class="link-btn" href="${esc(sheets[w])}" target="_blank" rel="noopener">${esc(nm(w))} 시트 열기 ↗</a>`:''}</div>
   <div class="set-row" style="flex-direction:column;align-items:stretch;gap:8px"><b>내 직무 선택지</b><div class="jobs">${DB[w].jobs.map(j=>`<span>${esc(j)}</span>`).join('')}</div><div class="inline"><input type="text" id="jobNew" placeholder="직무 추가 (예: 손익관리)"><button class="btn sm" data-act="job-add">추가</button></div></div>
   <div class="set-row" style="flex-direction:column;align-items:stretch;gap:6px"><b>자동 할 일</b><span class="muted small">켜 둔 것만 ${esc(nm(w))} 님 할 일에 자동으로 생겨요</span>
    ${[['q','작성 중으로 옮기면 → 문항마다 "N번 문항 작성" (마감 3일 전)'],['pre','마감 확정 공고 → "제출 전 최종 점검" (마감 2일 전)'],['res','제출하면 → "결과 확인" (2주 뒤)'],['recheck','마감 미확인 → "마감 재확인" (재확인 날짜)']].map(([k,t])=>`<label class="toggle"><input type="checkbox" class="chk" data-auto="${k}" ${DB[w].auto[k]?'checked':''}> ${t}</label>`).join('')}</div>
@@ -706,8 +706,8 @@ function addDlg(){
    ${a.tab==='link'?`<div class="field"><label for="aLink">공고 주소</label><input id="aLink" type="url" placeholder="https://" value="${esc(a.link)}"></div>`:''}
    ${a.tab==='cap'?`<label class="drop" for="aImg"><b>공고 화면 캡처 올리기</b><span>여러 장 가능 · PC에선 붙여넣기(Ctrl+V)도 돼요</span><input id="aImg" type="file" accept="image/*" multiple hidden><span class="btn sm">이미지 고르기</span></label>${a.imgs.length?`<div class="thumbs">${a.imgs.map(s=>`<img src="${s}" alt="올린 캡처">`).join('')}</div><button class="link-btn small" data-act="clear-img">캡처 지우기</button>`:''}`:''}
    ${a.tab==='text'?`<div class="field"><label for="aText">공고 본문</label><textarea id="aText" placeholder="채용 공고 내용을 복사해서 붙여넣어 주세요">${esc(a.text)}</textarea></div>`:''}
-   <button class="btn primary block" data-act="extract" ${usage.hasKey?'':'disabled'}>✨ 자동 정리</button>
-   ${usage.hasKey?'':'<span class="muted small">공고 정리용 API 키가 아직 연결되지 않았어요. 연결 전에는 "직접 입력"을 써 주세요</span>'}
+   <button class="btn primary block" data-act="extract" ${usage.hasKey===false?'disabled':''}>✨ 자동 정리</button>
+   ${usage.hasKey!==false?'':'<span class="muted small">공고 정리용 API 키가 아직 연결되지 않았어요. 연결 전에는 "직접 입력"을 써 주세요</span>'}
    ${a.lastForm?`<button class="btn block" data-act="to-form">정리 결과로 돌아가기 ›</button>`:''}
    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span class="muted num small">${usage.hasKey?`오늘 사용 ${usage.used} / ${usage.limit}`:''}</span><button class="link-btn" data-act="manual">직접 입력할게요 ›</button></div></div>`);
 }
@@ -784,7 +784,7 @@ async function runExtract(){
   if(A.text.trim())input.text=A.text.trim();
   if(A.imgs.length)input.images=A.imgs.map(s=>({type:'image/jpeg',data:s.split(',')[1]}));
   A.phase='loading';addDlg();
-  try{const j=await api('extract',{input});if(S.add!==A)return;if(j.usage)usage=j.usage;const d=j.data;
+  try{const j=await api('extract',{input});if(S.add!==A)return;if(j.usage){usage=j.usage;LS.set('usage',usage)}const d=j.data;
     A.phase='review';S.form={mode:'review',v:{co:d.co||'',short:d.short||'',job:d.job||'',role:d.role||'',type:d.type||'',ind:d.ind||'',loc:d.loc||'',applyStart:d.applyStart||'',dueKind:d.dueKind||'미확인',due:(d.due||'').slice(0,16),recheck:'',
       steps:(d.steps&&d.steps.length?d.steps:['서류']).join(' > '),link:input.url||'',relLink:'',events:(d.events||[]).filter(e=>/^\d{4}-\d{2}-\d{2}/.test(e.d)).map(e=>({d:e.d.slice(0,10),k:e.k,t:e.t})),qs:(d.qs||[]).map(q=>({t:q.t,n:q.n||0})),memo:d.memo||'',stage:'관심'}};
     A.lastForm=S.form;formDlg()}
