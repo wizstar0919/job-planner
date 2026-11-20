@@ -664,7 +664,7 @@ const HOT_DAYS=3; /* 마감 임박 기준 (홈·달력 공통) */
 /* 업권 선택지: 사람마다 따로 (설정 'inds'). 지금 공고에 쓰인 값이 목록에 없으면 같이 보여 줌 */
 const indsOf=(w,cur)=>{const l=[...((DB[w]&&DB[w].inds)||INDS)];(Array.isArray(cur)?cur:[cur]).forEach(c=>{if(c&&!l.includes(c))l.push(c)});return l};
 const INDS=['은행','증권','자산운용','저축은행','캐피탈/카드','보험','공기업','일반기업','기타'];
-const BASEJOBS=['영업','자산운용','채권운용','자금','재무/회계','경영지원/기획','리스크/심사','사업개발'];
+const BASEJOBS=['제품영업','솔루션영업','기술영업','금융영업','사업개발','자산운용','리스크/심사'];
 const QST=['미작성','초안','제출본'];
 const DEFAULT_AUTO={q:true,pre:true,res:true,recheck:true};
 const NAMES={me:'민석',gh:'건희'};
@@ -1437,19 +1437,17 @@ async function runExtract(){
     let why='';if(e.code==='api_error'&&e.detail){try{why=JSON.parse(e.detail).error.message}catch(x){why=String(e.detail).slice(0,120)}}
     A.warn=errMsg(e)+(e.code==='unreadable'&&e.detail?` (${e.detail})`:'')+(why?` · ${why}`:'');addDlg()}
 }
-/* 직무가 여러 개인 공고: 지원한 기록이 많은 직무 분류를 추천으로 위에 */
-function posRank(list){const cnt={};vis(S.me).filter(isSub).forEach(p=>{if(p.job)cnt[p.job]=(cnt[p.job]||0)+1});
-  const top=Object.entries(cnt).sort((a,b)=>b[1]-a[1]).slice(0,3).map(x=>x[0]);
-  return list.map((x,i)=>({x,i,c:cnt[x.job]||0,rec:!!x.job&&top.includes(x.job)})).sort((a,b)=>(b.rec-a.rec)||(b.c-a.c)||(a.i-b.i))}
+/* 직무가 여러 개인 공고: 공고에 나온 순서 그대로 (추천 없음) */
+function posRank(list){return list.map((x,i)=>({x,i}))}
 /* 내 직무 선택지(설정)에 있는 분류만 '맞는 직무'로 봄. 개발·연구 등은 숨김 */
 const posFits=x=>!!x.job&&DB[S.me].jobs.includes(x.job);
 function pickHTML(a){const d=a.res.d,all=posRank(d.positions),rows=all.filter(r=>a.showAll||posFits(r.x)),hid=all.length-all.filter(r=>posFits(r.x)).length;
   return dlgHead('공고 추가')+`<div class="dlg-b">
    <div class="note info"><b>${esc(d.co||'이 공고')}</b>엔 모집 직무가 <b>${d.positions.length}개</b> 있어요.${hid&&!a.showAll?` 내 직무와 안 맞는 ${hid}개는 뺐어요.`:''} 지원할 직무를 하나 골라 주세요</div>
    ${rows.length?'':'<div class="empty">내 직무 선택지에 맞는 직무가 없어요</div>'}
-   <div class="pos-list">${rows.map(r=>`<button class="pos ${r.rec?'rec':''}" data-act="pick-pos" data-v="${r.i}">
-     <span class="pos-t">${r.rec?'<span class="pill ok">추천</span> ':''}<b>${esc(r.x.role||'(이름 없음)')}</b></span>
-     <span class="pos-s muted small">${[r.x.job,r.x.career,r.x.loc,r.x.note].filter(Boolean).map(esc).join(' · ')}${r.rec?` · 자주 지원한 직무 (${esc(r.x.job)} ${r.c}건)`:''}</span></button>`).join('')}</div>
+   <div class="pos-list">${rows.map(r=>`<button class="pos" data-act="pick-pos" data-v="${r.i}">
+     <span class="pos-t"><b>${esc(r.x.role||'(이름 없음)')}</b></span>
+     <span class="pos-s muted small">${[r.x.job,r.x.career,r.x.loc,r.x.note].filter(Boolean).map(esc).join(' · ')}</span></button>`).join('')}</div>
    <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><button class="link-btn small" data-act="pick-back">‹ 다시 정리하기</button>${hid?`<button class="link-btn small" data-act="pick-all">${a.showAll?'맞는 직무만 보기':`뺀 직무 ${hid}개도 보기`}</button>`:''}</div></div>`}
 function reviewFrom(A,d,url,pos){pos=pos||{};
     A.phase='review';S.form={mode:'review',v:{co:d.co||'',short:d.short||'',job:pos.job||d.job||'',role:pos.role||d.role||'',type:d.type||'',ind:d.ind||'',loc:pos.loc||d.loc||'',applyStart:d.applyStart||'',dueKind:d.dueKind||'미확인',due:(d.due||'').slice(0,16),recheck:'',

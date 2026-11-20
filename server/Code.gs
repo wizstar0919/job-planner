@@ -244,7 +244,7 @@ function extract_(input) {
   urlFail.forEach(u => { content.push({ type: 'image', source: { type: 'url', url: u } }); urlImgs++; });
   if ((input.imageUrls || []).length && !urlImgs && !(input.images || []).length && !input.text && pageTxt.length < 400) return { ok: false, error: 'img_fetch' };
   const today = Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd');
-  const jobList = (input.jobs && input.jobs.length ? input.jobs : ['영업','자산운용','채권운용','자금','재무/회계','경영지원/기획','리스크/심사','사업개발']).map(String);
+  const jobList = (input.jobs && input.jobs.length ? input.jobs : ['제품영업','솔루션영업','기술영업','금융영업','사업개발','자산운용','리스크/심사']).map(String);
   const jobs = jobList.join(', ');
   const indList = (input.inds && input.inds.length ? input.inds : ['은행','증권','자산운용','저축은행','캐피탈/카드','보험','공기업','일반기업','기타']).map(String);
   const salesHint = jobList.some(j => /제품영업|솔루션영업|기술영업|금융영업/.test(j)) ?
