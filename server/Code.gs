@@ -194,12 +194,13 @@ function extract_(input) {
     pageTxt = pageText_(input.url);
     if (pageTxt.length < 400 && !(input.images && input.images.length) && !(input.imageUrls && input.imageUrls.length) && !input.text) return { ok: false, error: 'need_capture' };
   }
-  (input.images || []).slice(0, 8).forEach(img => {
+  const MAX_IMGS = 20;
+  (input.images || []).slice(0, MAX_IMGS).forEach(img => {
     content.push({ type: 'image', source: { type: 'base64', media_type: img.type || 'image/jpeg', data: img.data } });
   });
   // 이미지 주소: 서버가 대신 받아서 넣음 (jpeg/png/gif/webp, 5MB 이하)
   let urlImgs = 0; const urlFail = [];
-  (input.imageUrls || []).slice(0, Math.max(0, 8 - (input.images || []).length)).forEach(u => {
+  (input.imageUrls || []).slice(0, Math.max(0, MAX_IMGS - (input.images || []).length)).forEach(u => {
     try {
       if (!/^https?:\/\//i.test(String(u))) return;
       const r = UrlFetchApp.fetch(String(u), { muteHttpExceptions: true, followRedirects: true,
@@ -228,6 +229,8 @@ function extract_(input) {
   content.push({ type: 'text', text:
     '아래 채용 공고에서 정보를 뽑아 JSON으로 정리해 주세요. 오늘은 ' + today + ' (한국 시간)입니다.\n' +
     '규칙\n' +
+    '- readable: 회사 이름과 모집 직무를 실제로 읽을 수 있으면 true. 글자가 흐리거나 작거나 잘려서 못 읽겠거나, 채용 공고가 아니면 false로 하고 unreadable_reason에 그 이유를 한국어 한 문장으로. 이때 나머지 칸은 비워 두고 절대 추측해서 채우지 말 것\n' +
+    '- 이미지가 여러 장이면 한 화면을 위에서 아래로 잘라 둔 것일 수 있음 (경계가 조금씩 겹침)\n' +
     '- 공고에 없는 정보는 지어내지 말고 빈 문자열 "" (숫자는 0, 목록은 [])\n' +
     '- job: 다음 중 가장 가까운 것 하나 (맞는 게 없으면 ""): ' + jobs + '\n' + salesHint +
     '- role: 공고에 적힌 직무명 그대로 · type: 체험형(인턴 후 정규직 전환 없음)/전환형(채용연계·채용전제·정규직 전환 가능 인턴)/정규직/계약직 중 하나. 인턴인데 전환 여부가 공고에 없으면 "" · ind(업권): ' + indList.join(' / ') + ' 중 하나 (회사가 하는 사업 기준. 핀테크=결제·대출·투자 등 금융 서비스를 하는 IT 회사)\n' +
@@ -244,8 +247,9 @@ function extract_(input) {
   });
 
   const schema = { type: 'object', additionalProperties: false,
-    required: ['co','short','job','role','type','ind','loc','applyStart','dueKind','due','steps','events','qs','memo'],
+    required: ['readable','unreadable_reason','co','short','job','role','type','ind','loc','applyStart','dueKind','due','steps','events','qs','memo'],
     properties: {
+      readable: { type: 'boolean' }, unreadable_reason: { type: 'string' },
       co: { type: 'string' }, short: { type: 'string' }, job: { type: 'string' }, role: { type: 'string' },
       type: { type: 'string', enum: ['', '체험형', '전환형', '정규직', '계약직'] },
       ind: { type: 'string', enum: [''].concat(indList) },
@@ -290,5 +294,8 @@ function extract_(input) {
   const t = (msg.content || []).filter(c => c.type === 'text').map(c => c.text).join('');
   let data;
   try { data = JSON.parse(t); } catch (e) { return { ok: false, error: 'parse_error' }; }
+  // 못 읽었으면 다음 단계(확인 화면)로 넘기지 않음. 회사·직무가 둘 다 비어도 못 읽은 것으로 봄
+  if (data.readable === false || (!String(data.co || '').trim() && !String(data.role || '').trim() && !String(data.job || '').trim()))
+    return { ok: false, error: 'unreadable', detail: String(data.unreadable_reason || '').slice(0, 200), usage: usage_() };
   return { ok: true, data: data, usage: usage_() };
 }
