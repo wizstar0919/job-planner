@@ -24,7 +24,7 @@ for i, co in enumerate(cos):
     dk = '미확인' if i in (0, 12) else '확정'
     due = d(random.randint(-10, 20)) + 'T18:00'
     posts.append({'id': f'p{i}', 'co': co, 'job': jobs[i % 5], 'role': jobs[i % 5] + ' 신입', 'type': '정규직', 'ind': '금융', 'loc': '서울',
-                  'link': 'https://example.com/' + str(i), 'relLink': '', 'applyStart': '', 'dueKind': dk, 'due': due if dk == '확정' else '',
+                  'link': ['https://www.saramin.co.kr/zf_user/jobs/view?rec_idx=', 'https://www.jobkorea.co.kr/Recruit/GI_Read/', 'https://linkareer.com/activity/', 'https://www.wanted.co.kr/wd/', 'https://careers.example.com/jobs/'][i % 5] + str(i),  # 여러 사이트 'relLink': '', 'applyStart': '', 'dueKind': dk, 'due': due if dk == '확정' else '',
                   'recheck': '', 'stage': st, 'result': '서류 탈락' if st == '종료' else '', 'failAt': '',
                   'submitted': d(-3) if st in ('제출', '인적성', '면접1') else '', 'steps': '서류 > 인적성 > 면접', 'cur': '0', 'memo': '',
                   'src': '', 'created': d(-20), 'updated': d(-1), 'short': '', 'rev': 'r1'})

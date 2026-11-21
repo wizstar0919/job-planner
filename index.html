@@ -700,6 +700,8 @@ mark[data-cs]{cursor:pointer}
 @container app (max-width:760px){.sum .meta .jd-link{order:9;margin-left:0;flex:1 1 100%;justify-content:center;min-height:40px;font-size:14px}}
 .sum .meta a.jd-link{color:var(--accent);text-decoration:none;font-weight:600;display:inline-flex;align-items:center;gap:4px}
 .sum .meta a.jd-link:hover{border-color:var(--accent)}
+/* 기록 표: 공고가 올라온 사이트 (2026-11-22) */
+.src-tag{display:inline-block;margin-left:6px;padding:0 6px;border-radius:6px;background:var(--line);color:var(--muted);font-size:11px;font-weight:500;line-height:18px;vertical-align:1px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -1248,7 +1250,7 @@ function listSorted(){const k=S.lSort,dir=S.lDir;
 function stagePill(p){if(p.stage==='종료')return resPill(p);const c=COLS.find(c=>c[0]===p.stage);return `<span class="stg"><i class="dot" style="--c:var(${c?c[2]:'--st-start'})"></i>${esc(COLNAME[p.stage]||p.stage)}</span>`}
 function listRows(){const rows=listSorted();
   const d=s=>s?esc(s.slice(2,10).replace(/-/g,'.')):'<span class="muted">-</span>';
-  return {n:rows.length,h:rows.map(p=>`<tr data-act="open" data-id="${p.id}"><td><b>${esc(shortCo(p.co))}</b><div class="sub oneline">${esc(p.role||'')}</div></td><td>${stagePill(p)}</td><td class="hide-n">${esc(p.type||'')}</td><td class="hide-n">${esc(p.job||'')}</td><td class="hide-n">${esc(p.ind||'')}</td><td class="num">${p.dueKind==='확정'&&p.due?d(p.due):`<span class="muted">${p.dueKind==='채용시'?'채용 시':'미확인'}</span>`}</td><td class="num hide-n">${d(p.submitted)}</td></tr>`).join('')||'<tr><td colspan="7" class="muted">조건에 맞는 공고가 없어요</td></tr>'}}
+  return {n:rows.length,h:rows.map(p=>`<tr data-act="open" data-id="${p.id}"><td><b>${esc(shortCo(p.co))}</b>${p.link&&siteName(p.link)?`<span class="src-tag" title="공고가 올라온 곳">${esc(siteName(p.link))}</span>`:''}<div class="sub oneline">${esc(p.role||'')}</div></td><td>${stagePill(p)}</td><td class="hide-n">${esc(p.type||'')}</td><td class="hide-n">${esc(p.job||'')}</td><td class="hide-n">${esc(p.ind||'')}</td><td class="num">${p.dueKind==='확정'&&p.due?d(p.due):`<span class="muted">${p.dueKind==='채용시'?'채용 시':'미확인'}</span>`}</td><td class="num hide-n">${d(p.submitted)}</td></tr>`).join('')||'<tr><td colspan="7" class="muted">조건에 맞는 공고가 없어요</td></tr>'}}
 function listHTML(){const f=S.lf,r=listRows();
   const sel=(ch,cur,opts,all)=>`<select data-ch="${ch}" aria-label="${all}"><option value="">${all}</option>${opts.map(o=>{const[v,n]=Array.isArray(o)?o:[o,o];return `<option value="${esc(v)}" ${cur===v?'selected':''}>${esc(n)}</option>`}).join('')}</select>`;
   const jobs=[...new Set([...DB[S.who].jobs,...vis(S.who).map(p=>p.job).filter(Boolean)])];
