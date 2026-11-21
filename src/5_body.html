@@ -138,7 +138,7 @@ const Y=b=>b?'Y':'';
 function build(w,t){
   const P0=emptyPerson(w);if(!t)return P0;
   const posts=(t.posts||[]).map(r=>({id:sid(r.id),co:r.co||'',job:r.job||'',role:r.role||'',type:r.type||'',ind:r.ind||'',loc:r.loc||'',link:r.link||'',relLink:r.relLink||'',
-    short:r.short||'',applyStart:r.applyStart||'',dueKind:r.dueKind||'미확인',due:r.due||null,recheck:r.recheck||'',stage:r.stage||'관심',result:r.result||'',failAt:r.failAt||'',submitted:r.submitted||'',
+    short:r.short||'',size:SIZES.includes(r.size)?r.size:'',applyStart:r.applyStart||'',dueKind:r.dueKind||'미확인',due:r.due||null,recheck:r.recheck||'',stage:r.stage||'관심',result:r.result||'',failAt:r.failAt||'',submitted:r.submitted||'',
     steps:(r.steps||'서류').split('>').map(s=>s.trim()).filter(Boolean),cur:+r.cur||0,memo:r.memo||'',src:r.src||'',created:r.created||'',updated:r.updated||'',qs:[],tasks:[],events:[],hist:[],comments:[]}));
   const by=Object.fromEntries(posts.map(p=>[p.id,p]));
   (t.qs||[]).slice().sort((a,b)=>(+a.i)-(+b.i)).forEach(r=>{const p=by[sid(r.pid)];if(p)p.qs.push({id:sid(r.id),t:r.t||'',n:+r.n||0,a:r.a||'',st:QST.includes(r.st)?r.st:(r.a?'초안':'미작성'),lock:r.lock==='Y',ver:r.ver||'',u:r.u==='byte'?'byte':''})});
@@ -157,7 +157,7 @@ function setData(data,meta){
   if(meta){META=meta;NAMES=Object.assign({},meta.names||{});(meta.planners||[]).forEach(p=>{NAMES[p.id]=p.name})}
   Object.keys(DB).forEach(k=>{if(!META.planners.some(p=>p.id===k))delete DB[k]});
   META.planners.forEach(pl=>{DB[pl.id]=DB[pl.id]||emptyPerson(pl.id);Object.assign(DB[pl.id],build(pl.id,(data||{})[pl.id]))});loaded=true}
-const postRow=p=>({id:p.id,co:p.co,job:p.job,role:p.role,type:p.type,ind:p.ind,loc:p.loc,link:p.link,relLink:p.relLink,applyStart:p.applyStart,dueKind:p.dueKind,due:p.due||'',recheck:p.recheck,
+const postRow=p=>({id:p.id,size:p.size||'',co:p.co,job:p.job,role:p.role,type:p.type,ind:p.ind,loc:p.loc,link:p.link,relLink:p.relLink,applyStart:p.applyStart,dueKind:p.dueKind,due:p.due||'',recheck:p.recheck,
   stage:p.stage,result:p.result,failAt:p.failAt,submitted:p.submitted,steps:p.steps.join(' > '),cur:p.cur,memo:p.memo,short:p.short||'',src:p.src||'',created:p.created||TODAY,updated:new Date().toISOString().slice(0,16)});
 const cRow=(p,c)=>({id:c.id,pid:p.id,qi:c.qi<0?'':c.qi,quote:c.quote,text:c.text,by:c.by,at:c.at,replies:JSON.stringify(c.replies||[]),resolved:Y(c.resolved),read:Y(c.read),ver:c.ver||''});
 /* 저장 규칙 (2026-11-21)
@@ -233,7 +233,7 @@ function cacheData(){/* 서버 형식으로 다시 만들어 기기에 보관 */
     P.tasks.forEach(x=>t.tasks.push({id:x.id||uid(),pid:'',t:x.t,due:x.due,done:Y(x.done),doneAt:x.doneAt||'',auto:Y(x.auto)}));raw[w]=t});
   LS.set('cache',{at:Date.now(),data:raw,meta:META,email:cfg.email});
 }
-function applyLoad(j){setData(j.data,j.meta);if(META.status&&META.status!=='승인'){S.me=null;S.who=null;S.open=null;S.dlg=null}raw=j.data;LS.set('cache',{at:Date.now(),data:j.data,meta:META,email:cfg.email});if(j.usage){usage=j.usage;LS.set('usage',usage)}if(j.sheets)sheets=j.sheets;
+function applyLoad(j){setData(j.data,j.meta);if(META.status&&META.status!=='승인'){S.me=null;S.who=null;S.open=null;S.dlg=null}raw=j.data;LS.set('cache',{at:Date.now(),data:j.data,meta:META,email:cfg.email});if(j.usage){usage=j.usage;LS.set('usage',usage)}if(j.sheets)sheets=j.sheets;if(j.companies){COMP=compMap(j.companies);LS.set('comp',j.companies)}
   if(S.who&&!DB[S.who]){S.who=META.me;S.open=null}}
 /* 지난번에 저장 못 하고 닫힌 수정이 기기에 남아 있으면 먼저 보냄. 그사이 다른 기기에서 바뀐 공고는 서버가 거절(덮어쓰지 않음) */
 let pendBusy=false;
@@ -261,7 +261,7 @@ function errMsg(e){const c=e&&e.code;return {network:'인터넷 연결을 확인
 
 /* ================= 상태 · 도우미 ================= */
 const S={sideOff:(()=>{const v=LS.get('sideOff',null);return v===null?window.innerWidth<1500:v})(),me:null,who:null,view:'cal',boardCol:'작성중',fInd:'',fJob:'',bQ:'',bSort:'due',endOpen:{},calY:T0.getFullYear(),calM:T0.getMonth(),calSel:TODAY,calMode:'month',overlay:false,recQ:'',
-  recFrom:'',recTo:'',recPreset:'all',fJobs:[],fInds:[],lq:'',lf:LF0(),rateTab:'job',lSort:'date',lDir:-1,open:null,ed:null,dlg:null,add:null,addDraft:null,form:null,delAsk:false,undo:null,editQ:null,sel:null,replyTo:null,showRes:{},flash:null,busy:false};
+  recFrom:'',recTo:'',recPreset:'all',fJobs:[],fInds:[],fSizes:[],lq:'',lf:LF0(),rateTab:'job',lSort:'date',lDir:-1,open:null,ed:null,dlg:null,add:null,addDraft:null,form:null,delAsk:false,undo:null,editQ:null,sel:null,replyTo:null,showRes:{},flash:null,busy:false};
 const $=s=>document.querySelector(s);
 const app=$('#app'),main=$('#main'),layer=$('#layer');
 const nm=w=>(DB[w]&&DB[w].name)||NAMES[w]||'';
@@ -279,6 +279,13 @@ const owner=p=>Object.keys(DB).find(w=>DB[w].posts.includes(p))||S.who;
 const mine=p=>owner(p)===S.me;
 const upd=p=>p.updated||p.hist[p.hist.length-1].d;
 const isOpen=p=>p.stage==='관심'||p.stage==='작성중';
+/* 기업 규모 (2026-11-22): 공고에 적은 규모가 우선, 없으면 서버의 '기업 규모 목록'(회사 이름 → 규모) */
+const SIZES=['대기업','중견','중소','스타트업','공공기관','외국계'];
+const normCo=s=>String(s||'').replace(/\(주\)|㈜|주식회사/g,'').replace(/[\s()\[\]·.,\-_/&]+/g,'').toLowerCase();
+const compMap=o=>{const m={};Object.keys(o||{}).forEach(k=>{m[normCo(k)]=o[k]});return m};
+let COMP=compMap(LS.get('comp',{}));
+const sizeOf=p=>(p&&p.size)||COMP[normCo(p&&p.co)]||'';
+const sizeKey=p=>sizeOf(p)||'(미분류)';
 /* 공고 링크의 출처 이름 — 저장하지 않고 주소를 보고 그릴 때마다 정함 (API 안 씀)
    여러 회사 공고를 모아 올리는 채용 사이트는 그 이름, 그 밖(회사 자체 채용 페이지 · 그리팅·리크루터·나인하이어 같은 회사용 채용 솔루션)은 '공식' */
 const SITES=[['saramin','사람인'],['jobkorea','잡코리아'],['linkareer','링커리어'],['wanted.co.kr','원티드'],['jumpit','점핏'],['rocketpunch','로켓펀치'],['catch.co.kr','캐치'],['incruit','인크루트'],
@@ -519,10 +526,10 @@ function recPreset(v){const t=dt(TODAY);S.recPreset=v;
   else if(v==='year'){S.recFrom=t.getFullYear()+'-01-01';S.recTo=t.getFullYear()+'-12-31'}}
 const jobKey=p=>p.job||'(미분류)',indKey=p=>p.ind||'(미분류)';
 const isSub=p=>!!(p.submitted||(p.stage==='종료'&&p.result!=='포기/무응답'));
-function recPass(p,skip){return inRange(p)&&(skip==='job'||!S.fJobs.length||S.fJobs.includes(jobKey(p)))&&(skip==='ind'||!S.fInds.length||S.fInds.includes(indKey(p)))}
+function recPass(p,skip){return inRange(p)&&(skip==='job'||!S.fJobs.length||S.fJobs.includes(jobKey(p)))&&(skip==='ind'||!S.fInds.length||S.fInds.includes(indKey(p)))&&(skip==='size'||!S.fSizes.length||S.fSizes.includes(sizeKey(p)))}
 
 /* ================= 기록: 전체 공고 표 (노션 표 보기처럼) ================= */
-function LF0(){return {stage:'',type:'',res:'',ind:[],job:[],from:'',to:'',sub:false,fail:''}}
+function LF0(){return {stage:'',type:'',res:'',ind:[],job:[],size:[],from:'',to:'',sub:false,fail:''}}
 const STORD=Object.fromEntries(COLS.map((c,i)=>[c[0],i]));
 function listPass(p){const f=S.lf,q=S.lq.trim().toLowerCase();
   if(q&&!(p.co+' '+p.role+' '+p.ind+' '+p.job+' '+p.type).toLowerCase().includes(q))return false;
@@ -534,6 +541,7 @@ function listPass(p){const f=S.lf,q=S.lq.trim().toLowerCase();
   if(f.fail&&p.failAt!==f.fail)return false;
   if(f.ind.length&&!f.ind.includes(indKey(p)))return false;
   if(f.job.length&&!f.job.includes(jobKey(p)))return false;
+  if((f.size||[]).length&&!f.size.includes(sizeKey(p)))return false;
   if(f.sub&&!isSub(p))return false;
   if(f.from||f.to){const d=recDate(p);if(!d||(f.from&&d<f.from)||(f.to&&d>f.to))return false}
   return true}
@@ -554,6 +562,7 @@ function listHTML(){const f=S.lf,r=listRows();
   if(f.from||f.to)chips.push(['date',`기간: ${f.from?f.from.slice(2).replace(/-/g,'.'):'처음'} ~ ${f.to?f.to.slice(2).replace(/-/g,'.'):'지금'}`]);
   if(f.ind.length>1)chips.push(['ind','업권: '+f.ind.join(', ')]);
   if(f.job.length>1)chips.push(['job','직무: '+f.job.join(', ')]);
+  if((f.size||[]).length)chips.push(['size','규모: '+f.size.join(', ')]);
   if(f.fail)chips.push(['fail','떨어진 단계: '+f.fail]);
   if(f.type&&!TYPES.includes(f.type))chips.push(['type','유형: '+f.type]);
   const any=chips.length||f.stage||f.type||f.res||f.ind.length||f.job.length||S.lq;
@@ -568,7 +577,7 @@ function listHTML(){const f=S.lf,r=listRows();
    ${any?'<button class="link-btn small" data-act="l-clear-all">조건 모두 지우기</button>':''}</div>
   ${chips.length?`<div class="fchips">${chips.map(([k,n])=>`<button class="fchip" data-act="l-clear" data-v="${k}">${esc(n)} ✕</button>`).join('')}</div>`:''}
   <div class="tbl-wrap"><table class="ltable"><thead><tr>${th('co','회사 · 상세 직무')}${th('src','출처','src hide-n')}${th('stage','단계 · 결과')}<th class="hide-n">유형</th><th class="hide-n">직무</th><th class="hide-n">업권</th>${th('due','마감일','num')}${th('sub','제출일','num hide-n')}</tr></thead><tbody id="listBody">${r.h}</tbody></table></div>`}
-function goList(kind,k){const f=LF0();f.ind=S.fInds.slice();f.job=S.fJobs.slice();f.from=S.recFrom;f.to=S.recTo;
+function goList(kind,k){const f=LF0();f.ind=S.fInds.slice();f.job=S.fJobs.slice();f.size=S.fSizes.slice();f.from=S.recFrom;f.to=S.recTo;
   if(kind==='sub')f.sub=true;else if(kind==='wait')f.stage='제출';else if(kind==='fail'){f.stage='종료';f.fail=k}
   else if(kind==='month'){f.sub=true;f.from=k+'-01';f.to=k+'-31'}
   else if(kind==='cat'){f.sub=true;const i=k.indexOf('|'),t=k.slice(0,i),v=k.slice(i+1);if(t==='job')f.job=[v];else if(t==='ind')f.ind=[v];else f.type=v}
@@ -581,7 +590,8 @@ function cbar(n){
   const per=S.recFrom||S.recTo?(PRESET_NAME[S.recPreset]||`${S.recFrom?S.recFrom.slice(2).replace(/-/g,'.'):'처음'} ~ ${S.recTo?S.recTo.slice(2).replace(/-/g,'.'):'지금'}`):'';
   const chips=[...(per?[`<button class="fchip" data-act="rec-preset" data-v="all" title="기간 지우기">기간: ${esc(per)} ✕</button>`]:[]),
     ...S.fJobs.map(v=>`<button class="fchip" data-act="rec-f" data-k="job" data-v="${esc(v)}">직무: ${esc(v)} ✕</button>`),
-    ...S.fInds.map(v=>`<button class="fchip" data-act="rec-f" data-k="ind" data-v="${esc(v)}">업권: ${esc(v)} ✕</button>`)];
+    ...S.fInds.map(v=>`<button class="fchip" data-act="rec-f" data-k="ind" data-v="${esc(v)}">업권: ${esc(v)} ✕</button>`),
+    ...S.fSizes.map(v=>`<button class="fchip" data-act="rec-f" data-k="size" data-v="${esc(v)}">규모: ${esc(v)} ✕</button>`)];
   if(!chips.length){S.cbarOn=false;return ''}
   const enter=!S.cbarOn;S.cbarOn=true;
   return `<div class="cbar ${enter?'enter':''}"><div class="cb-chips">${chips.join('')}<span class="muted small cb-n">지원 ${n}건</span></div>
@@ -608,6 +618,7 @@ function recHTML(){
   /* 직무별은 업권 조건만, 업권별은 직무 조건만 걸고 셈 → 다른 항목도 계속 고를 수 있게 */
   const jobBars=bars(cntOf(all.filter(p=>recPass(p,'job')).filter(isSub),jobKey),'job',S.fJobs);
   const indBars=bars(cntOf(all.filter(p=>recPass(p,'ind')).filter(isSub),indKey),'ind',S.fInds);
+  const sizeBars=bars(cntOf(all.filter(p=>recPass(p,'size')).filter(isSub),sizeKey),'size',S.fSizes);
   const prog=COLS.filter(c=>c[0]!=='종료').map(([k,name,v])=>`<button data-act="goto-col" data-v="${k}"><span><i class="dot" style="--c:var(${v})"></i>${name}</span><b>${all.filter(p=>p.stage===k).length}</b></button>`).join('');
   const wait=ps.filter(p=>p.stage==='제출').length;
   const passOf=p=>isProc(p)||(p.stage==='종료'&&(p.result==='최종합격'||p.result==='인재풀'||(p.failAt&&p.failAt!=='서류')));
@@ -626,20 +637,27 @@ function recHTML(){
   const monH=months.length?`<div class="months">${months.map(([k,o],i)=>`<div class="mcol" title="${k.slice(2).replace('-','.')} · 지원 ${o.n}건 · 서류 통과 ${o.ok}건"><span class="mv">${o.n||''}</span><span class="mbox"><span class="mbar" style="height:${o.n/mmax*100}%"><span class="mok" style="height:${o.n?o.ok/o.n*100:0}%"></span></span></span><span class="ml">${i===0||k.slice(5)==='01'?k.slice(2,4)+'.':''}${+k.slice(5)}월</span></div>`).join('')}</div>
    <div class="mlegend small"><span><i class="mlg a"></i>지원</span><span><i class="mlg b"></i>그중 서류 통과</span></div>`:'<div class="muted small">아직 없어요</div>';
   /* ③ 분류별 서류 통과율 */
-  const RT=S.rateTab,keyF=RT==='job'?jobKey:RT==='ind'?indKey:(p=>p.type||'(미분류)');
+  const RT=S.rateTab,keyF=RT==='job'?jobKey:RT==='ind'?indKey:RT==='size'?sizeKey:(p=>p.type||'(미분류)');
   const grp={};sub.forEach(p=>{const k=keyF(p),g=grp[k]=grp[k]||{n:0,d:0,ok:0};g.n++;if(p.stage!=='제출'){g.d++;if(passOf(p))g.ok++}});
   const rrows=Object.entries(grp).sort((a,b)=>b[1].n-a[1].n||a[0].localeCompare(b[0],'ko'));
-  const rateH=`<div class="seg sm" style="margin:8px 0 10px">${[['job','직무'],['ind','업권'],['type','유형']].map(([k,n])=>`<button class="${RT===k?'on':''}" data-act="rate-tab" data-v="${k}">${n}</button>`).join('')}</div>
-   <div class="tbl-wrap"><table class="rtable"><thead><tr><th>${RT==='job'?'직무':RT==='ind'?'업권':'유형'}</th><th class="num">지원</th><th class="num hide-n">결과 나옴</th><th class="num">서류 통과</th><th>통과율</th></tr></thead><tbody>${rrows.map(([k,g])=>{const r=g.d?Math.round(g.ok/g.d*100):null,few=g.d<3;
+  const rateH=`<div class="seg sm" style="margin:8px 0 10px">${[['job','직무'],['ind','업권'],['size','규모'],['type','유형']].map(([k,n])=>`<button class="${RT===k?'on':''}" data-act="rate-tab" data-v="${k}">${n}</button>`).join('')}</div>
+   <div class="tbl-wrap"><table class="rtable"><thead><tr><th>${RT==='job'?'직무':RT==='ind'?'업권':RT==='size'?'기업 규모':'유형'}</th><th class="num">지원</th><th class="num hide-n">결과 나옴</th><th class="num">서류 통과</th><th>통과율</th></tr></thead><tbody>${rrows.map(([k,g])=>{const r=g.d?Math.round(g.ok/g.d*100):null,few=g.d<3;
      return `<tr><td>${esc(k)}</td><td class="num">${g.n}</td><td class="num hide-n">${g.d}</td><td class="num">${g.ok}</td><td><div class="rate ${few?'few':''}"><span class="track"><span class="fill" style="width:${r||0}%"></span></span><span class="num">${r===null?'-':r+'%'}</span>${few?'<span class="muted small">표본 적음</span>':''}</div></td></tr>`}).join('')||'<tr><td colspan="5" class="muted">아직 없어요</td></tr>'}</tbody></table></div>`;
   return `${roBanner()}<div class="view-head"><h2>${esc(nm(S.who))}의 지원 분석</h2></div>
   <section class="sec"><h3>지금 진행 현황</h3><div class="prog">${prog}</div></section>
   ${period}
-  <div class="stats"><div class="stat link" role="button" tabindex="0" data-act="to-list" data-v="sub" title="이 공고들 보기"><div class="k">지원한 공고 <span class="go">목록 ›</span></div><div class="v">${sub.length}<small>건</small></div><div class="k"><button class="link-btn small" data-act="to-list" data-v="wait">결과 대기 ${wait}건 ›</button></div></div>
-   <div class="stat link" role="button" tabindex="0" data-act="to-list" data-v="sub" title="이 공고들 보기"><div class="k">서류 통과율 <span class="go">목록 ›</span></div><div class="v">${rate}<small>% (${passed.length}/${decided.length})</small></div><div class="k">서류 결과가 나온 공고 기준</div></div>
+  <div class="kpis">
+   <div class="kpi link" role="button" tabindex="0" data-act="to-list" data-v="sub" title="이 공고들 보기"><div class="k">지원한 공고 <span class="go">목록 ›</span></div><div class="v">${sub.length}<small>건</small></div><div class="s"><button class="link-btn small" data-act="to-list" data-v="wait">결과 대기 ${wait}건 ›</button></div></div>
+   <div class="kpi link" role="button" tabindex="0" data-act="to-list" data-v="sub" title="이 공고들 보기"><div class="k">서류 통과율</div><div class="v">${rate}<small>%</small></div><div class="s">${passed.length} / ${decided.length}건 (결과 나온 공고)</div></div>
+   <div class="kpi"><div class="k">면접 진출</div><div class="v">${fun[2][1]}<small>건</small></div><div class="s">${fun[1][1]?'서류 통과의 '+Math.round(fun[2][1]/fun[1][1]*100)+'%':'-'}</div></div>
+   <div class="kpi"><div class="k">최종 합격</div><div class="v">${fun[3][1]}<small>건</small></div><div class="s">${fun[2][1]?'면접 진출의 '+Math.round(fun[3][1]/fun[2][1]*100)+'%':'-'}</div></div></div>
+  <div class="rgrid">
+   <div class="stat"><div class="k">직무별 지원 <span class="muted">· 눌러서 고르기</span></div>${jobBars}</div>
+   <div class="stat"><div class="k">업권별 지원 <span class="muted">· 눌러서 고르기</span></div>${indBars}</div>
+   <div class="stat"><div class="k">기업 규모별 지원 <span class="muted">· 눌러서 고르기</span></div>${sizeBars}</div>
+   <div class="stat"><div class="k">단계별 깔때기</div>${funH}</div>
    <div class="stat"><div class="k">떨어지거나 그만둔 단계</div>${bars(fail,'fail')}</div></div>
-  <div class="stats two"><div class="stat"><div class="k">직무별 지원 <span class="muted">· 눌러서 고르기</span></div>${jobBars}</div><div class="stat"><div class="k">업권별 지원 <span class="muted">· 눌러서 고르기</span></div>${indBars}</div></div>
-  <div class="stats two"><div class="stat"><div class="k">단계별 깔때기</div>${funH}</div><div class="stat"><div class="k">월별 지원 추이</div>${monH}</div></div>
+  <div class="stat" style="margin-bottom:14px"><div class="k">월별 지원 추이</div>${monH}</div>
   <div class="stat" style="margin-bottom:14px"><div class="k">분류별 서류 통과율 <span class="muted">· 결과 3건 미만은 흐리게</span></div>${rateH}</div>
   ${cbar(sub.length)}`;
 }
@@ -736,7 +754,7 @@ function edInfo(v){
    <div class="f2"><div class="field"><label for="fJob">지원 직무</label><select id="fJob" data-f="job"><option value=""></option>${jobs.map(j=>`<option ${v.job===j?'selected':''}>${esc(j)}</option>`).join('')}${v.job&&v.job!=='__new'&&!jobs.includes(v.job)?`<option selected>${esc(v.job)}</option>`:''}<option value="__new" ${v.job==='__new'?'selected':''}>+ 직접 추가</option></select>${v.job==='__new'?'<input id="fJobNew" placeholder="새 직무 이름" style="margin-top:4px">':''}</div>
     <div class="field"><label for="fRole">상세 직무명</label><input id="fRole" data-f="role" value="${esc(v.role)}"></div></div>
    <div class="f2"><div class="field"><label for="fType">유형</label><select id="fType" data-f="type"><option value=""></option>${TYPES.map(o=>`<option ${v.type===o?'selected':''}>${o}</option>`).join('')}</select></div>
-    <div class="field"><label for="fInd">업권</label><select id="fInd" data-f="ind"><option value=""></option>${indsOf(W,v.ind).map(o=>`<option ${v.ind===o?'selected':''}>${esc(o)}</option>`).join('')}</select></div></div>
+    <div class="field"><label for="fInd">업권</label><select id="fInd" data-f="ind"><option value=""></option>${indsOf(W,v.ind).map(o=>`<option ${v.ind===o?'selected':''}>${esc(o)}</option>`).join('')}</select></div><div class="field"><label for="fSize">기업 규모</label><select id="fSize" data-f="size"><option value=""></option>${SIZES.map(o=>`<option ${v.size===o?'selected':''}>${o}</option>`).join('')}</select></div></div>
    <div class="f2"><div class="field"><label for="fLoc">근무지</label><input id="fLoc" data-f="loc" value="${esc(v.loc)}"></div><div class="field"><label for="fAs">접수 시작 (선택)</label><input id="fAs" type="date" data-f="applyStart" value="${esc(v.applyStart)}"></div></div>
    <div class="f2"><div class="field"><label for="fDk">마감 종류</label><select id="fDk" data-f="dueKind">${DUEKIND.map(d=>`<option value="${d[0]}" ${v.dueKind===d[0]?'selected':''}>${d[1]}</option>`).join('')}</select></div>
     ${v.dueKind==='확정'?`<div class="field ${S.ed.focus?'focus':''}"><label for="fDue">마감 일시</label><input id="fDue" type="datetime-local" data-f="due" value="${esc(v.due)}"></div>`:v.dueKind==='미확인'?`<div class="field ${S.ed.focus?'focus':''}"><label for="fRecheck">재확인 날짜</label><input id="fRecheck" type="date" data-f="recheck" value="${esc(v.recheck)}"></div>`:'<div></div>'}</div>
@@ -754,7 +772,7 @@ function detailHTML(p){
   const headBtns=r?'':ed?'<button class="btn sm" data-act="ed-cancel">취소</button><button class="btn sm primary" data-act="ed-save">저장</button>':'<button class="btn sm" data-act="edit">정보 수정</button>';
   return `<div class="sheet-h"><button class="icon-btn" data-act="close" aria-label="닫기">←</button><h3>${away?'👀 '+esc(nm(W))+' · ':''}${ed?'정보 수정':'공고 상세'}</h3>${headBtns}</div>
   <div class="sheet-b">
-   ${ed?`<div class="blk">${edInfo(ed)}</div>`:`<div class="blk sum"><div class="co">${esc(p.co)}</div><div class="muted">${[p.job,p.role,p.type,p.ind,p.loc].filter(Boolean).map(esc).join(' · ')}</div>
+   ${ed?`<div class="blk">${edInfo(ed)}</div>`:`<div class="blk sum"><div class="co">${esc(p.co)}</div><div class="muted">${[p.job,p.role,p.type,p.ind,sizeOf(p),p.loc].filter(Boolean).map(esc).join(' · ')}</div>
     <div class="meta"><span class="pill">${COLNAME[p.stage]}</span>${dueBit}${p.link?(okUrl(p.link)?`<a class="btn sm jd-link" title="${esc(siteHost(p.link))}" href="${esc(p.link.trim())}" target="_blank" rel="noopener noreferrer">🔗 공고 열기${siteName(p.link)?' · '+esc(siteName(p.link)):''} ↗</a>`:`<span class="muted small jd-link-bad" title="http/https 주소만 열 수 있어요">공고 링크: ${esc(p.link)}</span>`):''}</div>
     <div class="stage-row"><div class="steps">${stepsH(p)}</div>${!r&&isOpen(p)?`<button class="btn sm primary" data-act="submit-done">제출 완료</button>`:''}</div>
     <div class="links">${p.relLink?(okUrl(p.relLink)?`<a class="link-btn" href="${esc(p.relLink.trim())}" target="_blank" rel="noopener noreferrer">관련 자료 ↗</a>`:`<span class="muted small" title="http/https 주소만 열 수 있어요">관련 자료: ${esc(p.relLink)}</span>`):''}</div>
@@ -780,7 +798,7 @@ function detailHTML(p){
 function edStart(p,focus){S.ed={pid:p.id,v:fromPost(p),orig:fromPost(p),focus:!!focus};S.delAsk=false;hidePop()}
 /* 편집 중 다른 기기 변경 합치기: 편집 시작 때 내용(orig)과 비교해 내가 바꾼 칸만 최신 공고 위에 올림.
    같은 칸을 다른 기기에서도 다르게 바꿨으면 알리고 멈춤 → 한 번 더 저장하면 내 것으로 덮어씀 */
-const ED_F={co:'회사',short:'달력 이름',job:'직무',role:'상세 직무',type:'유형',ind:'업권',loc:'근무지',applyStart:'접수 시작',dueKind:'마감 종류',due:'마감',recheck:'재확인일',steps:'전형 절차',link:'공고 링크',relLink:'관련 자료',memo:'비고',stage:'단계'};
+const ED_F={co:'회사',short:'달력 이름',size:'기업 규모',job:'직무',role:'상세 직무',type:'유형',ind:'업권',loc:'근무지',applyStart:'접수 시작',dueKind:'마감 종류',due:'마감',recheck:'재확인일',steps:'전형 절차',link:'공고 링크',relLink:'관련 자료',memo:'비고',stage:'단계'};
 const qsKey=qs=>JSON.stringify((qs||[]).map(q=>[q.id||'',q.t||'',+q.n||0,q.a||'',q.st||'',!!q.lock,q.u||'']));
 function edMerge(p){
   const v=S.ed.v,o=S.ed.orig||fromPost(p),c=fromPost(p),clash=[],str=x=>String(x??'');
@@ -800,7 +818,7 @@ function edSave(){
   const W=owner(p);let job=v.job;if(job==='__new'){job=(v._jobNew||'').trim();if(!job){toast('새 직무 이름을 적어 주세요');return}if(!DB[W].jobs.includes(job)){DB[W].jobs.push(job);dirtyS(W)}}
   const b=snap(p),newStage=v.stage,oldStage=p.stage,oldIds=p.qs.map(q=>q.id),oldT=Object.fromEntries(p.qs.map(q=>[q.id,q.t]));
   v.qs=v.qs.map(q=>!q.id||oldT[q.id]!==q.t?cleanQ(q):q);
-  Object.assign(p,{co:v.co.trim(),short:(v.short||'').trim(),job,role:v.role.trim(),type:v.type,ind:v.ind,loc:v.loc.trim(),applyStart:v.applyStart,dueKind:v.dueKind,
+  Object.assign(p,{co:v.co.trim(),short:(v.short||'').trim(),size:SIZES.includes(v.size)?v.size:'',job,role:v.role.trim(),type:v.type,ind:v.ind,loc:v.loc.trim(),applyStart:v.applyStart,dueKind:v.dueKind,
     due:v.dueKind==='확정'?v.due.slice(0,16):null,recheck:v.dueKind==='미확인'?v.recheck:'',steps:v.steps.split('>').map(s=>s.trim()).filter(Boolean),
     link:v.link.trim(),relLink:v.relLink.trim(),memo:v.memo.trim(),
     qs:v.qs.filter(q=>(q.t||'').trim()||(q.a||'').trim()).map(q=>{const st=q.st||((q.a||'').trim()?'초안':'미작성');return {id:q.id||uid(),t:(q.t||'').trim(),n:q.n||0,a:q.a||'',st:(st==='미작성'&&(q.a||'').trim())?'초안':st,lock:st==='제출본',ver:q.ver||'',u:q.u||''}})});remapCmts(p,oldIds);
@@ -888,7 +906,7 @@ function settingsDlg(){const w=S.me;show(()=>dlgHead('설정 · '+esc(nm(w)))+`<
   </div>`)}
 
 /* ================= 계정 · 공유 (노션식 권한) ================= */
-function resetFilters(){S.fInd='';S.fJob='';S.bQ='';S.fJobs=[];S.fInds=[];S.lf=LF0();S.lq=''}
+function resetFilters(){S.fInd='';S.fJob='';S.bQ='';S.fJobs=[];S.fInds=[];S.fSizes=[];S.lf=LF0();S.lq=''}
 function shareSummary(w){const pl=plOf(w);const n=pl?pl.shares.length:0;return n?`${n}명에게 공유 중`:'아직 아무에게도 공유하지 않았어요'}
 function acctMenu(){show(()=>dlgHead('계정 · 플래너')+`<div class="dlg-b"><span class="muted small">${esc(META.email)} 로 로그인함</span>
   <div class="menu-list">${[S.me,...others()].filter(Boolean).map(w=>`<div class="acct-row"><button class="${S.who===w?'cur':''}" data-act="view" data-v="${w}"><b>${esc(nm(w))}</b>&nbsp;<span class="muted small">${w===S.me?'내 플래너':esc(ROLE_NAME[roleOf(w)]||'')}</span>${S.who===w?' (보는 중)':''}${newComments(w).length&&w===S.me?` · 새 댓글 ${newComments(w).length}`:''}</button>${w===S.me?'':`<label class="toggle small ovl-tg"><input type="checkbox" class="chk" data-ch="ovl" data-v="${w}" ${ovl().includes(w)?'checked':''}> 달력에 같이 보기</label>`}</div>`).join('')}</div>
@@ -934,7 +952,7 @@ async function setRole(pid,em,role){
 }
 
 /* ================= S5 공고 추가 · S6 입력 ================= */
-const BLANK=()=>({co:'',short:'',job:'',role:'',type:'',ind:'',loc:'',applyStart:'',dueKind:'확정',due:'',recheck:'',steps:'서류 > 면접',link:'',relLink:'',events:[],qs:[],memo:'',stage:'관심'});
+const BLANK=()=>({co:'',short:'',size:'',job:'',role:'',type:'',ind:'',loc:'',applyStart:'',dueKind:'확정',due:'',recheck:'',steps:'서류 > 면접',link:'',relLink:'',events:[],qs:[],memo:'',stage:'관심'});
 function addDlg(){
   const a=S.add;
   if(a.phase==='pick'&&a.res){show(()=>pickHTML(a));return}
@@ -954,7 +972,7 @@ function addDlg(){
    ${a.lastForm?`<button class="btn block" data-act="to-form">정리 결과로 돌아가기 ›</button>`:''}
    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span class="muted num small">${usage.hasKey?`오늘 사용 ${usage.used} / ${usage.limit}`:''}</span><button class="link-btn" data-act="manual">직접 입력할게요 ›</button></div></div>`);
 }
-function fromPost(p){return {co:p.co,short:p.short||'',job:p.job,role:p.role,type:p.type,ind:p.ind,loc:p.loc,applyStart:p.applyStart,dueKind:p.dueKind,due:p.due||'',recheck:p.recheck||'',steps:p.steps.join(' > '),link:p.link,relLink:p.relLink,events:[],qs:p.qs.map(q=>Object.assign({},q)),memo:p.memo,stage:p.stage}}
+function fromPost(p){return {co:p.co,short:p.short||'',size:sizeOf(p),job:p.job,role:p.role,type:p.type,ind:p.ind,loc:p.loc,applyStart:p.applyStart,dueKind:p.dueKind,due:p.due||'',recheck:p.recheck||'',steps:p.steps.join(' > '),link:p.link,relLink:p.relLink,events:[],qs:p.qs.map(q=>Object.assign({},q)),memo:p.memo,stage:p.stage}}
 function dupH(co,exId){const c=String(co||'').trim();if(!c)return '';const d=DB[S.who].posts.find(p=>p.co.trim()===c&&p.id!==exId&&p.stage!=='종료');
   return d?`<div class="note info">같은 회사 공고가 이미 있어요: <b>${esc(label(d))}</b> · ${COLNAME[d.stage]} · ${esc(dueText(d))}<br>같은 공고라면 저장하지 말고 닫아 주세요. 작성 중인 내용은 그대로예요.</div>`:''}
 function formDlg(){
@@ -974,7 +992,7 @@ function formDlg(){
    <div class="field"><label for="fShort">달력 표시 이름 (선택 · 휴대폰 달력에 쓰는 줄임말)</label><input id="fShort" data-f="short" value="${esc(v.short||'')}" placeholder="비우면 회사명 앞 4글자 (예: SKNS, 한투)"></div>
    <div class="field ${miss('role')}"><label for="fRole">상세 직무명</label><input id="fRole" data-f="role" value="${esc(v.role)}" placeholder="공고에 적힌 직무명"></div>
    <div class="f2"><div class="field ${miss('type')}"><label for="fType">유형</label><select id="fType" data-f="type"><option value=""></option>${TYPES.map(o=>`<option ${v.type===o?'selected':''}>${o}</option>`).join('')}</select></div>
-    <div class="field ${miss('ind')}"><label for="fInd">업권</label><select id="fInd" data-f="ind"><option value=""></option>${indsOf(S.who,v.ind).map(o=>`<option ${v.ind===o?'selected':''}>${esc(o)}</option>`).join('')}</select></div></div>
+    <div class="field ${miss('ind')}"><label for="fInd">업권</label><select id="fInd" data-f="ind"><option value=""></option>${indsOf(S.who,v.ind).map(o=>`<option ${v.ind===o?'selected':''}>${esc(o)}</option>`).join('')}</select></div><div class="field"><label for="fSize">기업 규모</label><select id="fSize" data-f="size"><option value=""></option>${SIZES.map(o=>`<option ${v.size===o?'selected':''}>${o}</option>`).join('')}</select></div></div>
    <div class="f2"><div class="field ${miss('loc')}"><label for="fLoc">근무지</label><input id="fLoc" data-f="loc" value="${esc(v.loc)}"></div><div class="field"><label for="fAs">접수 시작 (선택)</label><input id="fAs" type="date" data-f="applyStart" value="${esc(v.applyStart)}"></div></div>
    <div class="field"><label for="fDk">마감 종류</label><select id="fDk" data-f="dueKind">${DUEKIND.map(d=>`<option value="${d[0]}" ${v.dueKind===d[0]?'selected':''}>${d[1]}</option>`).join('')}</select></div>
    ${v.dueKind==='확정'?`<div class="field ${miss('due')} ${F.focus?'focus':''}"><label for="fDue">마감 일시</label><input id="fDue" type="datetime-local" data-f="due" value="${esc(v.due)}">${rev?'<span class="note" style="margin-top:4px">마감 일시는 원문과 꼭 비교해 주세요. 시간(23:59, 18:00 등)을 잘못 읽는 경우가 있어요.</span>':''}</div>`:''}
@@ -1006,7 +1024,7 @@ function saveForm(){
   if(v.dueKind==='확정'&&!v.due){toast('마감 일시를 넣거나 마감 종류를 바꿔 주세요');return}
   let job=v.job;if(job==='__new'){job=(v._jobNew||'').trim();if(!job){toast('새 직무 이름을 적어 주세요');return}if(!DB[S.who].jobs.includes(job)){DB[S.who].jobs.push(job);dirtyS(S.who)}}
   const fp=F.mode==='edit'?find(F.id):null,old=fp?Object.fromEntries(fp.qs.map(q=>[q.id,q.t])):{},oldIds=fp?fp.qs.map(q=>q.id):[];/* 이미 있던 문항은 글을 고쳤을 때만 정리 */
-  const fields={co:v.co.trim(),short:(v.short||'').trim(),job,role:v.role.trim(),type:v.type,ind:v.ind,loc:v.loc.trim(),applyStart:v.applyStart,dueKind:v.dueKind,due:v.dueKind==='확정'?v.due.slice(0,16):null,recheck:v.dueKind==='미확인'?v.recheck:'',
+  const fields={co:v.co.trim(),short:(v.short||'').trim(),size:SIZES.includes(v.size)?v.size:'',job,role:v.role.trim(),type:v.type,ind:v.ind,loc:v.loc.trim(),applyStart:v.applyStart,dueKind:v.dueKind,due:v.dueKind==='확정'?v.due.slice(0,16):null,recheck:v.dueKind==='미확인'?v.recheck:'',
     steps:v.steps.split('>').map(s=>s.trim()).filter(Boolean),link:v.link.trim(),relLink:v.relLink.trim(),memo:v.memo.trim(),qs:v.qs.filter(q=>q.t.trim()).map(q=>{const o=(q.id&&old[q.id]===q.t)?q:cleanQ(q);return {id:q.id||uid(),t:o.t.trim(),n:o.n,u:o.u||'',st:q.st||(q.a?'초안':'미작성'),a:q.a||'',lock:!!q.lock,ver:q.ver||''}})};
   if(!fields.steps.length)fields.steps=['서류'];
   if(F.mode==='edit'){const p=fp,b=snap(p);Object.assign(p,fields);remapCmts(p,oldIds);if(p.cur>=p.steps.length)p.cur=p.steps.length-1;ensureAuto(p);hist(p,'정보 수정');S.dlg=null;S.form=null;changed(p,b,'정보를 고쳤어요');return}
@@ -1084,7 +1102,7 @@ function pickHTML(a){const d=a.res.d,all=posRank(d.positions),rows=all.filter(r=
      <span class="pos-s muted small">${[r.x.job,r.x.career,r.x.loc,r.x.note].filter(Boolean).map(esc).join(' · ')}</span></button>`).join('')}</div>
    <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><button class="link-btn small" data-act="pick-back">‹ 다시 정리하기</button>${hid?`<button class="link-btn small" data-act="pick-all">${a.showAll?'맞는 직무만 보기':`뺀 직무 ${hid}개도 보기`}</button>`:''}</div></div>`}
 function reviewFrom(A,d,url,pos){pos=pos||{};
-    A.phase='review';S.form={mode:'review',v:{co:d.co||'',short:d.short||'',job:pos.job||d.job||'',role:pos.role||d.role||'',type:d.type||'',ind:d.ind||'',loc:pos.loc||d.loc||'',applyStart:d.applyStart||'',dueKind:d.dueKind||'미확인',due:(d.due||'').slice(0,16),recheck:'',
+    A.phase='review';S.form={mode:'review',v:{co:d.co||'',short:d.short||'',size:SIZES.includes(d.size)?d.size:(COMP[normCo(d.co)]||''),job:pos.job||d.job||'',role:pos.role||d.role||'',type:d.type||'',ind:d.ind||'',loc:pos.loc||d.loc||'',applyStart:d.applyStart||'',dueKind:d.dueKind||'미확인',due:(d.due||'').slice(0,16),recheck:'',
       steps:(d.steps&&d.steps.length?d.steps:['서류']).join(' > '),link:url,relLink:'',events:(d.events||[]).filter(e=>/^\d{4}-\d{2}-\d{2}/.test(e.d)).map(e=>({d:e.d.slice(0,10),k:e.k,t:e.t})),qs:(d.qs||[]).map(q=>({t:q.t,n:q.n||0})),memo:[pos.note?`지원 직무: ${pos.role}${pos.career?' ('+pos.career+')':''} — ${pos.note}`:'',d.memo||''].filter(Boolean).join(' · '),stage:'관심'}};
     A.lastForm=S.form;formDlg()
 }
@@ -1121,13 +1139,13 @@ document.addEventListener('click',e=>{
   switch(a){
     case 'theme':toggleTheme();break;
     case 'rec-preset':recPreset(v);render();break;
-    case 'rec-f':{const arr=t.dataset.k==='job'?S.fJobs:S.fInds;const i=arr.indexOf(v);if(i>=0)arr.splice(i,1);else arr.push(v);render();break}
-    case 'cbar-clear':S.fJobs=[];S.fInds=[];recPreset('all');render();break;
+    case 'rec-f':{const arr=t.dataset.k==='job'?S.fJobs:t.dataset.k==='size'?S.fSizes:S.fInds;const i=arr.indexOf(v);if(i>=0)arr.splice(i,1);else arr.push(v);render();break}
+    case 'cbar-clear':S.fJobs=[];S.fInds=[];S.fSizes=[];recPreset('all');render();break;
     case 'rate-tab':S.rateTab=v;render();break;
-    case 'rec-f-clear':S.fJobs=[];S.fInds=[];render();break;
+    case 'rec-f-clear':S.fJobs=[];S.fInds=[];S.fSizes=[];render();break;
     case 'to-list':e.stopPropagation();goList(v,t.dataset.k);break;
     case 'l-sort':if(S.lSort===v)S.lDir=-S.lDir;else{S.lSort=v;S.lDir=v==='co'||v==='stage'?1:-1}render();break;
-    case 'l-clear':{const f=S.lf;if(v==='sub')f.sub=false;else if(v==='date'){f.from='';f.to=''}else if(v==='ind')f.ind=[];else if(v==='job')f.job=[];else if(v==='fail')f.fail='';else if(v==='type')f.type='';render();break}
+    case 'l-clear':{const f=S.lf;if(v==='sub')f.sub=false;else if(v==='date'){f.from='';f.to=''}else if(v==='ind')f.ind=[];else if(v==='job')f.job=[];else if(v==='size')f.size=[];else if(v==='fail')f.fail='';else if(v==='type')f.type='';render();break}
     case 'l-clear-all':S.lf=LF0();S.lq='';render();break;
     case 'side-tg':S.sideOff=!S.sideOff;LS.set('sideOff',S.sideOff);render();break;
     case 'retry':saveErr=false;flush();break;

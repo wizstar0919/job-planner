@@ -306,3 +306,19 @@ mark[data-cs]{cursor:pointer}
 .sum .meta a.jd-link:hover{border-color:var(--accent)}
 /* 기록 표: '출처' 칸 — 공고가 올라온 사이트 (2026-11-22) */
 .ltable td.src{font-size:12.5px;color:var(--muted);white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis}
+/* 분석 화면 정리 (2026-11-22): 큰 숫자 칸 4개 + 막대 카드 격자 (넓을수록 칸 수 늘어남) */
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:14px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;min-width:0;display:flex;flex-direction:column;gap:2px}
+.kpi.link{cursor:pointer}.kpi.link:hover{border-color:var(--accent)}
+.kpi .k{font-size:13px;color:var(--muted)}
+.kpi .k .go{float:right;color:var(--accent);font-size:12px}
+.kpi .v{font-family:var(--f-num);font-size:40px;line-height:1.1;font-weight:700;letter-spacing:-.02em;margin:4px 0 2px}
+.kpi .v small{font-size:16px;color:var(--muted);font-weight:500;margin-left:4px}
+.kpi .s{font-size:12.5px;color:var(--muted)}
+.rgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px;margin-bottom:14px;align-items:start}
+.rgrid .stat .bars{gap:7px;margin-top:10px}
+.rgrid .bar{grid-template-columns:96px minmax(0,1fr) 30px;font-size:13px}
+.rgrid .bar .track{height:9px}
+.rgrid .funnel{gap:8px}
+.rgrid .fstep{grid-template-columns:64px minmax(0,1fr) 30px 38px}
+@container app (max-width:760px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kpi .v{font-size:32px}.rgrid{grid-template-columns:minmax(0,1fr)}}

@@ -47,7 +47,9 @@ gh = {'posts': [dict(p, id='g' + p['id'], co=p['co'] + ' (건희)') for p in pos
 meta = {'email': 'me@example.com', 'me': 'me', 'status': '승인', 'admin': True, 'pending': 1, 'names': {'me': '민석', 'gh': '건희'},
         'planners': [{'id': 'me', 'name': '민석', 'owner': 'me@example.com', 'role': 'owner', 'shares': [{'email': 'gh@example.com', 'role': 'comment', 'name': '건희'}]},
                      {'id': 'gh', 'name': '건희', 'owner': 'gh@example.com', 'role': 'comment', 'shares': [{'email': 'me@example.com', 'role': 'comment', 'name': '민석'}]}]}
-load = {'ok': True, 'meta': meta, 'data': {'me': me, 'gh': gh}, 'usage': {'used': 2, 'limit': 20, 'hasKey': True}, 'sheets': {}}
+SZ = ['대기업', '중견', '중소', '스타트업', '공공기관', '외국계']
+load = {'ok': True, 'meta': meta, 'data': {'me': me, 'gh': gh}, 'usage': {'used': 2, 'limit': 20, 'hasKey': True}, 'sheets': {},
+        'companies': {c: SZ[(i * 7) % 5] for i, c in enumerate(cos)}}  # 가짜 기업 규모
 inj = """<script>
 (function(){var q=new URLSearchParams(location.search);
 localStorage.setItem('jpl_cfg',JSON.stringify({server:'https://example.invalid',sess:'S1',email:'me@example.com'}));

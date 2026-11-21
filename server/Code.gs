@@ -24,7 +24,7 @@ const SCHEMA = {
   posts: { tab: '공고', cols: [['id','id'],['co','회사'],['job','지원 직무'],['role','상세 직무명'],['type','유형'],['ind','업권'],['loc','근무지'],
     ['link','공고 링크'],['relLink','관련 자료'],['applyStart','접수 시작'],['dueKind','마감 종류'],['due','마감'],['recheck','재확인일'],
     ['stage','단계'],['result','결과'],['failAt','탈락 단계'],['submitted','제출일'],['steps','전형 절차'],['cur','현재 전형'],
-    ['memo','비고'],['src','등록 경로'],['created','생성일'],['updated','수정일'],['short','달력 표시 이름'],['rev','수정번호']] },
+    ['memo','비고'],['src','등록 경로'],['created','생성일'],['updated','수정일'],['short','달력 표시 이름'],['rev','수정번호'],['size','기업 규모']] },
   qs: { tab: '문항', cols: [['id','id'],['pid','공고 id'],['i','순번'],['t','문항'],['n','글자 수'],['a','답변'],['st','상태'],['lock','잠금'],['ver','버전'],['u','단위']] }, // 단위: '' = 글자(자), 'byte' = 바이트
   events: { tab: '일정', cols: [['id','id'],['pid','공고 id'],['d','날짜'],['k','종류'],['t','내용']] },
   tasks: { tab: '할 일', cols: [['id','id'],['pid','공고 id'],['t','내용'],['due','기한'],['done','완료'],['doneAt','완료일'],['auto','자동']] },
@@ -37,10 +37,26 @@ const SCHEMA = {
 const REG = {
   planners: { tab: '플래너', cols: [['id','플래너 id'],['name','이름'],['owner','주인 이메일'],['sheet','데이터 시트 id'],['created','만든 날']] },
   shares: { tab: '공유', cols: [['pid','플래너 id'],['email','이메일'],['role','권한'],['by','공유한 사람'],['at','공유한 날']] },
-  members: { tab: '회원', cols: [['email','이메일'],['name','이름'],['status','상태'],['joined','가입일'],['decided','처리일'],['limit','하루 한도']] }
+  members: { tab: '회원', cols: [['email','이메일'],['name','이름'],['status','상태'],['joined','가입일'],['decided','처리일'],['limit','하루 한도']] },
+  // 기업 규모 목록 (회사 이름 → 규모). 모든 플래너가 같이 씀. 공고에 규모를 따로 적으면 그게 우선 (2026-11-22)
+  companies: { tab: '기업', cols: [['co','회사'],['size','기업 규모'],['note','메모'],['at','적은 날']] }
 };
 /* 가입 승인: 관리자(서버 주인)·플래너 주인·공유받은 사람은 자동 승인, 그 밖의 새 사람은 '대기' → 관리자가 승인. '거절'이면 전부 막힘 */
 const ST = { ok: '승인', wait: '대기', no: '거절' };
+const SIZES = ['대기업', '중견', '중소', '스타트업', '공공기관', '외국계'];
+/* 기업 규모 목록 채우기 (관리자만): rows [{co, size, note}] — 회사 이름이 같으면 고침 */
+function setCompanies_(rows) {
+  if (!Array.isArray(rows) || rows.length > 2000) return { ok: false, error: 'bad_request' };
+  const bad = rows.filter(r => !r || !String(r.co || '').trim() || (r.size !== '' && SIZES.indexOf(r.size) < 0));
+  if (bad.length) return { ok: false, error: 'bad_request', detail: '규모 값 확인: ' + SIZES.join('/') };
+  editReg_(reg => {
+    reg.companies = reg.companies || [];
+    rows.forEach(r => { const co = String(r.co).trim().slice(0, 60), i = reg.companies.findIndex(x => x.co === co);
+      const row = { co: co, size: r.size, note: String(r.note || '').slice(0, 200), at: today_() };
+      if (i >= 0) reg.companies[i] = row; else reg.companies.push(row); });
+  });
+  return { ok: true, n: rows.length };
+}
 
 /* ---------- 진입점 ---------- */
 function doGet() {
@@ -57,7 +73,7 @@ function doPost(e) {
     migrate_();
     if (req.action === 'login') return out_(login_(req.idToken));
     // 자소서 올리기 도구(tools/jaso_sync.py): 도구 키로 관리자 본인 플래너 읽기·저장만
-    if (req.toolKey != null && ['loadAll', 'batch', 'mergeDiff'].indexOf(req.action) < 0) return out_({ ok: false, error: 'forbidden' });
+    if (req.toolKey != null && ['loadAll', 'batch', 'mergeDiff', 'setCompanies'].indexOf(req.action) < 0) return out_({ ok: false, error: 'forbidden' });
     const email = req.toolKey != null ? toolEmail_(req.toolKey) : checkSession_(req.sess);
     if (!email) return out_({ ok: false, error: 'auth' });
     switch (req.action) {
@@ -68,6 +84,7 @@ function doPost(e) {
       case 'extract': return out_(approved_(email) ? extract_(req.input || {}, email) : { ok: false, error: 'forbidden' });
       case 'fetchImg': return out_(approved_(email) ? fetchImgFor_(email, req.url) : { ok: false, error: 'forbidden' });
       case 'logoutAll': bumpSess_(email); return out_({ ok: true });
+      case 'setCompanies': return out_(email === admin_() ? setCompanies_(req.rows || []) : { ok: false, error: 'forbidden' });
       case 'mergeDiff': return out_(email === admin_() ? mergeDiff_() : { ok: false, error: 'forbidden' });
       case 'adminInfo': case 'approve': case 'setLimit': case 'setDefaults': case 'setOwner':
         return out_(email === admin_() ? adminAct_(email, req) : { ok: false, error: 'forbidden' });
@@ -423,7 +440,9 @@ function loadFor_(email) {
     planners: acc.map(x => plannerMeta_(reg, x.pl, x.role))
   };
   if (email === admin_()) { meta.admin = true; meta.pending = reg.members.filter(m => status_(reg, m.email) === ST.wait).length; }
-  return { ok: true, meta: meta, data: data, usage: usage_(email), sheets: sheets };
+  const companies = {};
+  (reg.companies || []).forEach(c => { if (c.co && SIZES.indexOf(c.size) >= 0) companies[c.co] = c.size; });
+  return { ok: true, meta: meta, data: data, usage: usage_(email), sheets: sheets, companies: companies };
 }
 function plannerMeta_(reg, pl, role) {
   const nameOf = e => { const o = reg.planners.find(x => x.owner === e); return o ? o.name : ''; };
@@ -854,6 +873,7 @@ function extractRun_(input, email, key, st) {
     '- role: 공고에 적힌 직무명 그대로 · type: 체험형(인턴 후 정규직 전환 없음)/전환형(채용연계·채용전제·정규직 전환 가능 인턴)/정규직/계약직 중 하나. 인턴인데 전환 여부가 공고에 없으면 "" · ind(업권): ' + indList.join(' / ') + ' 중 하나 (지원하는 부문이 하는 사업 기준. 사업이 하나인 회사는 회사 업종 그대로, 여러 사업을 하는 회사는 이 공고가 뽑는 부문의 사업으로. 예: 장비 렌탈 회사의 IT장비 영업 → IT/소프트웨어, 고객센터 회사의 AICC(AI 콜센터) 영업 → IT/소프트웨어, 게임 회사 → IT/소프트웨어. 핀테크=결제·대출·투자 등 금융 서비스를 하는 IT 회사)\n' +
     '- 마감: 날짜와 시각이 있으면 dueKind "확정", due "YYYY-MM-DDTHH:MM" (시각이 없으면 23:59). "채용 시 마감"이면 dueKind "채용시". 알 수 없으면 "미확인". 연도가 없으면 오늘 이후 가장 가까운 날짜로\n' +
     '- applyStart: 접수 시작일 "YYYY-MM-DD" (없으면 "")\n' +
+    '- size: 회사 규모 — 대기업(공정위 대기업집단 계열사·대형 금융지주 계열) / 중견 / 중소 / 스타트업(투자 받아 성장 중인 신생 기업) / 공공기관(공기업·준정부기관·협회 등) / 외국계(외국 기업의 한국 법인) 중 하나. 공고(기업정보 칸 등)와 일반적으로 알려진 사실로 판단하고, 모르면 ""\n' +
     '- steps: 전형 순서 (예: ["서류","인적성","1차 면접","최종 면접"])\n' +
     '- events: 공고에 날짜가 나온 전형 일정만 (k: apt=인적성·AI역량, int=면접, ann=결과 발표, etc=기타). 서류 마감은 넣지 않음\n' +
     '- qs: 자기소개서 문항을 **원문 그대로** (요약·수정 금지), n은 글자 수 제한 (없으면 0)\n' +
@@ -865,12 +885,13 @@ function extractRun_(input, email, key, st) {
   });
 
   const schema = { type: 'object', additionalProperties: false,
-    required: ['readable','unreadable_reason','co','short','job','role','type','ind','loc','applyStart','dueKind','due','steps','events','qs','memo','positions'],
+    required: ['readable','unreadable_reason','co','short','job','role','type','ind','size','loc','applyStart','dueKind','due','steps','events','qs','memo','positions'],
     properties: {
       readable: { type: 'boolean' }, unreadable_reason: { type: 'string' },
       co: { type: 'string' }, short: { type: 'string' }, job: { type: 'string' }, role: { type: 'string' },
       type: { type: 'string', enum: ['', '체험형', '전환형', '정규직', '계약직'] },
       ind: { type: 'string', enum: [''].concat(indList) },
+      size: { type: 'string', enum: [''].concat(SIZES) },
       loc: { type: 'string' }, applyStart: { type: 'string' },
       dueKind: { type: 'string', enum: ['확정', '채용시', '미확인'] }, due: { type: 'string' },
       steps: { type: 'array', items: { type: 'string' } },
