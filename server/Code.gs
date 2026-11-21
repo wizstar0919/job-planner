@@ -57,7 +57,7 @@ function doPost(e) {
     migrate_();
     if (req.action === 'login') return out_(login_(req.idToken));
     // 자소서 올리기 도구(tools/jaso_sync.py): 도구 키로 관리자 본인 플래너 읽기·저장만
-    if (req.toolKey != null && ['loadAll', 'batch'].indexOf(req.action) < 0) return out_({ ok: false, error: 'forbidden' });
+    if (req.toolKey != null && ['loadAll', 'batch', 'mergeDiff'].indexOf(req.action) < 0) return out_({ ok: false, error: 'forbidden' });
     const email = req.toolKey != null ? toolEmail_(req.toolKey) : checkSession_(req.sess);
     if (!email) return out_({ ok: false, error: 'auth' });
     switch (req.action) {
@@ -68,6 +68,7 @@ function doPost(e) {
       case 'extract': return out_(approved_(email) ? extract_(req.input || {}, email) : { ok: false, error: 'forbidden' });
       case 'fetchImg': return out_(approved_(email) ? fetchImgFor_(email, req.url) : { ok: false, error: 'forbidden' });
       case 'logoutAll': bumpSess_(email); return out_({ ok: true });
+      case 'mergeDiff': return out_(email === admin_() ? mergeDiff_() : { ok: false, error: 'forbidden' });
       case 'adminInfo': case 'approve': case 'setLimit': case 'setDefaults': case 'setOwner':
         return out_(email === admin_() ? adminAct_(email, req) : { ok: false, error: 'forbidden' });
       default: return out_({ ok: false, error: 'unknown_action' });
@@ -285,6 +286,24 @@ function migrate_() {
     if (!p.getProperty('USER_LIMIT')) p.setProperty('USER_LIMIT', '20');
     p.setProperty('MIGRATE_V', '2');
   } finally { lock.releaseLock(); }
+}
+/* 통합 때 시험판 복사 시트에만 있던 줄 보기 (관리자만). 되살릴지 정하려고 */
+function mergeDiff_() {
+  const old = JSON.parse(props_().getProperty('TEST_SHEETS') || '{}'), reg = reg_(), out = {};
+  Object.keys(old).forEach(id => {
+    const pl = reg.planners.find(x => x.id === id); if (!pl) return;
+    const orig = SpreadsheetApp.openById(pl.sheet), test = SpreadsheetApp.openById(old[id]), r = {};
+    Object.keys(SCHEMA).forEach(t => {
+      if (t === 'settings') return;
+      const a = readOld_(orig, t), have = {};
+      a.forEach(x => { have[x.id] = x; });
+      const rows = readOld_(test, t).filter(x => x.id && (!have[x.id] || (t === 'posts' && String(x.updated || '') > String(have[x.id].updated || ''))))
+        .map(x => ({ kind: have[x.id] ? 'newer' : 'only', test: x, now: have[x.id] || null }));
+      if (rows.length) r[t] = rows;
+    });
+    out[id] = r;
+  });
+  return { ok: true, diff: out };
 }
 /* MIGRATE_V 3 (2026-11-22 원본 통합): 민석·건희 플래너가 시험판용 복사 시트 대신 원래 앱의 시트(IMPORT_FROM)를 그대로 쓰게 바꿈.
    바꾸기 전에 원래 시트를 통째로 백업 복사하고, 복사 시트에만 있던 줄이 있는지 개수만 세어 MERGE_REPORT 에 남김 (복사 시트는 지우지 않음) */
