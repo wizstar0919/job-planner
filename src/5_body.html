@@ -279,11 +279,13 @@ const owner=p=>Object.keys(DB).find(w=>DB[w].posts.includes(p))||S.who;
 const mine=p=>owner(p)===S.me;
 const upd=p=>p.updated||p.hist[p.hist.length-1].d;
 const isOpen=p=>p.stage==='관심'||p.stage==='작성중';
-/* 공고 링크의 사이트 이름 — 저장하지 않고 주소를 보고 그릴 때마다 정함 */
+/* 공고 링크의 출처 이름 — 저장하지 않고 주소를 보고 그릴 때마다 정함 (API 안 씀)
+   여러 회사 공고를 모아 올리는 채용 사이트는 그 이름, 그 밖(회사 자체 채용 페이지 · 그리팅·리크루터·나인하이어 같은 회사용 채용 솔루션)은 '공식' */
 const SITES=[['saramin','사람인'],['jobkorea','잡코리아'],['linkareer','링커리어'],['wanted.co.kr','원티드'],['jumpit','점핏'],['rocketpunch','로켓펀치'],['catch.co.kr','캐치'],['incruit','인크루트'],
-  ['greetinghr','그리팅'],['ninehire','나인하이어'],['recruiter.co.kr','리크루터'],['work24','고용24'],['work.go.kr','워크넷'],['alio.go.kr','알리오'],['jasoseol','자소설닷컴'],['albamon','알바몬'],
-  ['linkedin','링크드인'],['rememberapp','리멤버'],['peoplenjob','피플앤잡'],['jobplanet','잡플래닛'],['superookie','슈퍼루키'],['jobda','잡다']];
-const siteName=u=>{let h='';try{h=new URL(String(u).trim()).hostname.replace(/^www\./,'')}catch(e){return ''}const m=SITES.find(x=>h.includes(x[0]));return m?m[1]:h.replace(/^(careers?|jobs?|recruit(ing)?|apply|hr|talent)\./,'')};
+  ['work24','고용24'],['work.go.kr','워크넷'],['alio.go.kr','알리오'],['jasoseol','자소설닷컴'],['albamon','알바몬'],['linkedin','링크드인'],['rememberapp','리멤버'],['peoplenjob','피플앤잡'],
+  ['jobplanet','잡플래닛'],['superookie','슈퍼루키'],['jobda','잡다'],['career.co.kr','커리어'],['indeed','인디드'],['campus.kr','캠퍼스픽'],['detizen','대티즌'],['thinkcontest','씽굿'],['allforyoung','올포영']];
+const siteHost=u=>{try{return new URL(String(u).trim()).hostname.replace(/^www\./,'')}catch(e){return ''}};
+const siteName=u=>{const h=siteHost(u);if(!h)return '';const m=SITES.find(x=>h===x[0]||h.endsWith('.'+x[0])||h.includes(x[0]));return m?m[1]:'공식'};
 /* 마감 임박: 마감 확정 · 오늘~HOT_DAYS일 안 · 종료 아님. 이미 제출한 공고도 마감 전까지 '제출함'으로 흐리게 같이 보여 줌 (2026-11-22) */
 const doneSub=p=>!isOpen(p)&&p.stage!=='종료';
 const isHot=p=>p.stage!=='종료'&&p.dueKind==='확정'&&p.due&&diff(p.due)>=0&&diff(p.due)<=HOT_DAYS;
@@ -543,7 +545,7 @@ function listSorted(){const k=S.lSort,dir=S.lDir;
 function stagePill(p){if(p.stage==='종료')return resPill(p);const c=COLS.find(c=>c[0]===p.stage);return `<span class="stg"><i class="dot" style="--c:var(${c?c[2]:'--st-start'})"></i>${esc(COLNAME[p.stage]||p.stage)}</span>`}
 function listRows(){const rows=listSorted();
   const d=s=>s?esc(s.slice(2,10).replace(/-/g,'.')):'<span class="muted">-</span>';
-  return {n:rows.length,h:rows.map(p=>`<tr data-act="open" data-id="${p.id}"><td><b>${esc(shortCo(p.co))}</b><div class="sub oneline">${esc(p.role||'')}</div></td><td class="src hide-n" title="${esc(p.link||'')}">${p.link&&siteName(p.link)?esc(siteName(p.link)):'<span class="muted">-</span>'}</td><td>${stagePill(p)}</td><td class="hide-n">${esc(p.type||'')}</td><td class="hide-n">${esc(p.job||'')}</td><td class="hide-n">${esc(p.ind||'')}</td><td class="num">${p.dueKind==='확정'&&p.due?d(p.due):`<span class="muted">${p.dueKind==='채용시'?'채용 시':'미확인'}</span>`}</td><td class="num hide-n">${d(p.submitted)}</td></tr>`).join('')||'<tr><td colspan="8" class="muted">조건에 맞는 공고가 없어요</td></tr>'}}
+  return {n:rows.length,h:rows.map(p=>`<tr data-act="open" data-id="${p.id}"><td><b>${esc(shortCo(p.co))}</b><div class="sub oneline">${esc(p.role||'')}</div></td><td class="src hide-n" title="${esc(siteHost(p.link)||'')}">${p.link&&siteName(p.link)?esc(siteName(p.link)):'<span class="muted">-</span>'}</td><td>${stagePill(p)}</td><td class="hide-n">${esc(p.type||'')}</td><td class="hide-n">${esc(p.job||'')}</td><td class="hide-n">${esc(p.ind||'')}</td><td class="num">${p.dueKind==='확정'&&p.due?d(p.due):`<span class="muted">${p.dueKind==='채용시'?'채용 시':'미확인'}</span>`}</td><td class="num hide-n">${d(p.submitted)}</td></tr>`).join('')||'<tr><td colspan="8" class="muted">조건에 맞는 공고가 없어요</td></tr>'}}
 function listHTML(){const f=S.lf,r=listRows();
   const sel=(ch,cur,opts,all)=>`<select data-ch="${ch}" aria-label="${all}"><option value="">${all}</option>${opts.map(o=>{const[v,n]=Array.isArray(o)?o:[o,o];return `<option value="${esc(v)}" ${cur===v?'selected':''}>${esc(n)}</option>`}).join('')}</select>`;
   const jobs=[...new Set([...DB[S.who].jobs,...vis(S.who).map(p=>p.job).filter(Boolean)])];
@@ -753,7 +755,7 @@ function detailHTML(p){
   return `<div class="sheet-h"><button class="icon-btn" data-act="close" aria-label="닫기">←</button><h3>${away?'👀 '+esc(nm(W))+' · ':''}${ed?'정보 수정':'공고 상세'}</h3>${headBtns}</div>
   <div class="sheet-b">
    ${ed?`<div class="blk">${edInfo(ed)}</div>`:`<div class="blk sum"><div class="co">${esc(p.co)}</div><div class="muted">${[p.job,p.role,p.type,p.ind,p.loc].filter(Boolean).map(esc).join(' · ')}</div>
-    <div class="meta"><span class="pill">${COLNAME[p.stage]}</span>${dueBit}${p.link?(okUrl(p.link)?`<a class="btn sm jd-link" href="${esc(p.link.trim())}" target="_blank" rel="noopener noreferrer">🔗 공고 열기${siteName(p.link)?' · '+esc(siteName(p.link)):''} ↗</a>`:`<span class="muted small jd-link-bad" title="http/https 주소만 열 수 있어요">공고 링크: ${esc(p.link)}</span>`):''}</div>
+    <div class="meta"><span class="pill">${COLNAME[p.stage]}</span>${dueBit}${p.link?(okUrl(p.link)?`<a class="btn sm jd-link" title="${esc(siteHost(p.link))}" href="${esc(p.link.trim())}" target="_blank" rel="noopener noreferrer">🔗 공고 열기${siteName(p.link)?' · '+esc(siteName(p.link)):''} ↗</a>`:`<span class="muted small jd-link-bad" title="http/https 주소만 열 수 있어요">공고 링크: ${esc(p.link)}</span>`):''}</div>
     <div class="stage-row"><div class="steps">${stepsH(p)}</div>${!r&&isOpen(p)?`<button class="btn sm primary" data-act="submit-done">제출 완료</button>`:''}</div>
     <div class="links">${p.relLink?(okUrl(p.relLink)?`<a class="link-btn" href="${esc(p.relLink.trim())}" target="_blank" rel="noopener noreferrer">관련 자료 ↗</a>`:`<span class="muted small" title="http/https 주소만 열 수 있어요">관련 자료: ${esc(p.relLink)}</span>`):''}</div>
     </div>`}
