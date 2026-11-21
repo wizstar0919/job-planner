@@ -294,3 +294,13 @@ mark[data-cs]{cursor:pointer}
 /* 마감 임박: 이미 제출한 공고는 흐리게 + 회색 D-n (2026-11-22) */
 .row.sub-done{opacity:.6}
 .dd.sub{background:var(--line);color:var(--muted)}
+/* 공고 상세 요약: 링크는 단계 줄 오른쪽, 전형 흐름 + 작은 '제출 완료' 한 줄 (2026-11-22) */
+.sum .meta .jd-link,.sum .meta .jd-link-bad{margin-left:auto}
+.sum .meta .jd-link{white-space:nowrap}
+.sum .stage-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:2px}
+.sum .stage-row .steps{flex:1 1 auto;min-width:0}
+.sum .stage-row .btn{flex-shrink:0}
+.sum .links:empty{display:none}
+@container app (max-width:760px){.sum .meta .jd-link{order:9;margin-left:0;flex:1 1 100%;justify-content:center;min-height:40px;font-size:14px}}
+.sum .meta a.jd-link{color:var(--accent);text-decoration:none;font-weight:600;display:inline-flex;align-items:center;gap:4px}
+.sum .meta a.jd-link:hover{border-color:var(--accent)}

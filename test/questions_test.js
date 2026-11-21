@@ -91,7 +91,7 @@ const prev = A => [...A.d.querySelectorAll('.qn-item')].map(x => ({ t: x.querySe
     A.click('[data-act="qm-open"]'); A.click('.q-mode .q-foot [data-act="qm-del"]'); A.click('[data-act="qm-done"]'); await sleep(800);
     const c0 = A.store.me.comments.find(c => c.id === 'c0'), c1 = A.store.me.comments.find(c => c.id === 'c1');
     ck('question deleted on 완료', qs(A).length === 1 && qs(A)[0].id === 'q2');
-    ck('comments follow their question', c0.qi === '' && c1.qi === '0');
+    ck('deleted question comments removed, others follow', !c0 && c1.qi === '0');
     A.click('[data-act="qm-open"]'); typeM(A, 0, 't', '바뀌면 안 됨'); A.click('[data-act="qm-cancel"]'); await sleep(600);
     ck('취소 keeps original', qs(A)[0].t === '두 번째 문항 고침' && !A.d.querySelector('.q-mode'));
     // 새로 불러와 화면이 다시 그려져도 입력 중이던 값이 남음

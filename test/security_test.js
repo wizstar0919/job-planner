@@ -13,7 +13,7 @@ function mkStore(evil) {
   t.qs.push({ id: 'q1', pid: 'p1', i: '0', t: '지원 동기', n: '500', a: '처음 답변입니다', st: evil ? EVIL : '초안', ver: '1차 제출본' });
   t.events.push({ id: 'e1', pid: 'p1', d: '2026-11-25', k: evil ? '"><img src=x onerror=bad>' : 'int', t: '면접' });
   t.hist.push({ id: 'h1', pid: 'p1', d: evil ? EVIL : '2026-11-01', t: '등록' });
-  t.comments.push({ id: evil ? 'x" onmouseover="bad' : 'c1', pid: 'p1', qi: '', quote: '', text: '첫 댓글', by: 'gh', at: evil ? EVIL : '2026-11-20', replies: '[]', resolved: '', read: '', ver: '' });
+  t.comments.push({ id: evil ? 'x" onmouseover="bad' : 'c1', pid: 'p1', qi: '0', quote: '', text: '첫 댓글', by: 'gh', at: evil ? EVIL : '2026-11-20', replies: '[]', resolved: '', read: '', ver: '' });
   return { me: t };
 }
 const app = opt => H.app(html, Object.assign({}, opt, { store: (opt && opt.store) || mkStore(opt && opt.evil) }));

@@ -279,6 +279,11 @@ const owner=p=>Object.keys(DB).find(w=>DB[w].posts.includes(p))||S.who;
 const mine=p=>owner(p)===S.me;
 const upd=p=>p.updated||p.hist[p.hist.length-1].d;
 const isOpen=p=>p.stage==='관심'||p.stage==='작성중';
+/* 공고 링크의 사이트 이름 — 저장하지 않고 주소를 보고 그릴 때마다 정함 */
+const SITES=[['saramin','사람인'],['jobkorea','잡코리아'],['linkareer','링커리어'],['wanted.co.kr','원티드'],['jumpit','점핏'],['rocketpunch','로켓펀치'],['catch.co.kr','캐치'],['incruit','인크루트'],
+  ['greetinghr','그리팅'],['ninehire','나인하이어'],['recruiter.co.kr','리크루터'],['work24','고용24'],['work.go.kr','워크넷'],['alio.go.kr','알리오'],['jasoseol','자소설닷컴'],['albamon','알바몬'],
+  ['linkedin','링크드인'],['rememberapp','리멤버'],['peoplenjob','피플앤잡'],['jobplanet','잡플래닛'],['superookie','슈퍼루키'],['jobda','잡다']];
+const siteName=u=>{let h='';try{h=new URL(String(u).trim()).hostname.replace(/^www\./,'')}catch(e){return ''}const m=SITES.find(x=>h.includes(x[0]));return m?m[1]:h};
 /* 마감 임박: 마감 확정 · 오늘~HOT_DAYS일 안 · 종료 아님. 이미 제출한 공고도 마감 전까지 '제출함'으로 흐리게 같이 보여 줌 (2026-11-22) */
 const doneSub=p=>!isOpen(p)&&p.stage!=='종료';
 const isHot=p=>p.stage!=='종료'&&p.dueKind==='확정'&&p.due&&diff(p.due)>=0&&diff(p.due)<=HOT_DAYS;
@@ -682,7 +687,7 @@ function qBlock(p,q,i,r){
 /* [수정] 모드의 문항 칸 (S.qMode.qs[i] 를 고침. 삭제는 표시만 해 두고 [완료] 때 반영) */
 function qModeBlock(p,o,i){
   const q=o.qs[i],nc=p.comments.filter(c=>c.qi===i).length;
-  if(q.del)return `<div class="q q-del"><span><b>${i+1}.</b> ${esc(String(q.t).slice(0,40))}${String(q.t).length>40?'…':''}</span><span class="muted small">[완료]를 누르면 지워져요${q.a?' · 답변도 같이':''}${nc?` · 댓글 ${nc}개는 공고 댓글로 옮겨져요`:''}</span><button class="link-btn small" data-act="qm-del" data-i="${i}">되돌리기</button></div>`;
+  if(q.del)return `<div class="q q-del"><span><b>${i+1}.</b> ${esc(String(q.t).slice(0,40))}${String(q.t).length>40?'…':''}</span><span class="muted small">[완료]를 누르면 지워져요${q.a?' · 답변도 같이':''}${nc?` · 이 문항 댓글 ${nc}개도 같이 지워져요`:''}</span><button class="link-btn small" data-act="qm-del" data-i="${i}">되돌리기</button></div>`;
   return `<div class="q qe q-mode"><b>${i+1}번 문항</b>
    <textarea data-qm="${i}" data-qx="t" aria-label="${i+1}번 문항 원문" style="min-height:52px">${esc(q.t)}</textarea>
    <div class="qr">글자 수 제한 <input type="number" min="0" step="50" data-qm="${i}" data-qx="n" value="${esc(q.n||'')}" placeholder="0" aria-label="글자 수 제한">${qUnitSel(`data-qm="${i}" data-qx="u"`,q.u)}</div>
@@ -701,8 +706,10 @@ function qNewBox(o){
    <div class="inline" style="justify-content:flex-end;flex-wrap:wrap"><button class="btn sm" data-act="qn-cancel">취소</button><button class="btn sm" data-act="qn-back">다시 붙여넣기</button>${L.length>1?'<button class="btn sm" data-act="qn-one">나누지 말고 하나로</button>':''}<button class="btn sm primary" data-act="qn-add">${L.length>1?L.length+'개 ':''}추가</button></div></div>`;
 }
 /* 문항이 빠지거나 순서가 바뀌면 댓글이 가리키는 문항 번호도 맞춤 (없어진 문항의 댓글은 공고 댓글로) */
-function remapCmts(p,oldIds){const at={};p.qs.forEach((q,k)=>{at[q.id]=k});
-  p.comments.forEach(c=>{if(c.qi<0)return;const id=oldIds[c.qi],ni=id!=null&&id in at?at[id]:-1;if(ni!==c.qi){c.qi=ni;dirtyC(p,c)}})}
+function remapCmts(p,oldIds){const at={};p.qs.forEach((q,k)=>{at[q.id]=k});const gone=[];
+  p.comments.forEach(c=>{if(c.qi<0)return;const id=oldIds[c.qi],ni=id!=null&&id in at?at[id]:-1;if(ni<0){gone.push(c);return}if(ni!==c.qi){c.qi=ni;dirtyC(p,c)}});
+  if(gone.length){p.comments=p.comments.filter(c=>!gone.includes(c));const w=owner(p);/* 지운 문항의 댓글은 같이 지움 (2026-11-22) */
+    gone.forEach(c=>enqueue('cd:'+c.id,w,()=>[{op:'remove',table:'comments',key:'id',value:c.id}]))}}
 function qAdd(p,list){const b=snap(p);list.forEach(q=>p.qs.push({id:uid(),t:q.t,n:q.n||0,u:q.u||'',a:'',st:'미작성',lock:false,ver:''}));
   ensureAuto(p);S.qNew=null;changed(p,b,list.length>1?`문항 ${list.length}개를 추가했어요`:'문항을 추가했어요')}
 /* 입력 중인 문항 값을 상태에 보관 (새로 불러와 화면이 다시 그려져도 안 사라지게) */
@@ -741,16 +748,16 @@ function detailHTML(p){
   const W=owner(p),r=!canEdit(W),away=W!==S.me,cc=canComment(W);
   const ed=!r&&S.ed&&S.ed.pid===p.id?S.ed.v:null;
   const evs=evsOf(p).sort((a,b)=>a.d.localeCompare(b.d));
-  const pcs=p.comments.filter(c=>c.qi<0||c.qi>=p.qs.length);
   const dueBit=p.stage==='종료'?resPill(p):(p.dueKind==='확정'&&p.due)&&isOpen(p)?`<span class="dd ${ddC(diff(p.due))}">${diff(p.due)<0?'마감 지남':ddL(diff(p.due))}</span><span class="muted">${esc(dueText(p))}</span>`:p.submitted?`<span class="muted">${md(p.submitted)} 제출</span>`:`<span class="muted">${esc(dueText(p))}</span>`;
   const headBtns=r?'':ed?'<button class="btn sm" data-act="ed-cancel">취소</button><button class="btn sm primary" data-act="ed-save">저장</button>':'<button class="btn sm" data-act="edit">정보 수정</button>';
   return `<div class="sheet-h"><button class="icon-btn" data-act="close" aria-label="닫기">←</button><h3>${away?'👀 '+esc(nm(W))+' · ':''}${ed?'정보 수정':'공고 상세'}</h3>${headBtns}</div>
   <div class="sheet-b">
    ${ed?`<div class="blk">${edInfo(ed)}</div>`:`<div class="blk sum"><div class="co">${esc(p.co)}</div><div class="muted">${[p.job,p.role,p.type,p.ind,p.loc].filter(Boolean).map(esc).join(' · ')}</div>
-    <div class="meta"><span class="pill">${COLNAME[p.stage]}</span>${dueBit}</div>
-    <div class="links">${p.link?(okUrl(p.link)?`<a class="link-btn" href="${esc(p.link.trim())}" target="_blank" rel="noopener noreferrer">공고 열기 ↗</a>`:`<span class="muted small" title="http/https 주소만 열 수 있어요">공고 링크: ${esc(p.link)}</span>`):''}${p.relLink?(okUrl(p.relLink)?`<a class="link-btn" href="${esc(p.relLink.trim())}" target="_blank" rel="noopener noreferrer">관련 자료 ↗</a>`:`<span class="muted small" title="http/https 주소만 열 수 있어요">관련 자료: ${esc(p.relLink)}</span>`):''}</div>
-    ${!r&&isOpen(p)?`<button class="btn primary block" data-act="submit-done">제출 완료</button>`:''}</div>`}
-   <div class="blk"><div class="blk-h">전형 ${ed&&p.stage!=='종료'?'<button class="btn sm" data-act="step-menu">현재 전형 변경</button>':''}</div><div class="steps">${stepsH(p)}</div></div>
+    <div class="meta"><span class="pill">${COLNAME[p.stage]}</span>${dueBit}${p.link?(okUrl(p.link)?`<a class="btn sm jd-link" href="${esc(p.link.trim())}" target="_blank" rel="noopener noreferrer">🔗 공고 열기${siteName(p.link)?' · '+esc(siteName(p.link)):''} ↗</a>`:`<span class="muted small jd-link-bad" title="http/https 주소만 열 수 있어요">공고 링크: ${esc(p.link)}</span>`):''}</div>
+    <div class="stage-row"><div class="steps">${stepsH(p)}</div>${!r&&isOpen(p)?`<button class="btn sm primary" data-act="submit-done">제출 완료</button>`:''}</div>
+    <div class="links">${p.relLink?(okUrl(p.relLink)?`<a class="link-btn" href="${esc(p.relLink.trim())}" target="_blank" rel="noopener noreferrer">관련 자료 ↗</a>`:`<span class="muted small" title="http/https 주소만 열 수 있어요">관련 자료: ${esc(p.relLink)}</span>`):''}</div>
+    </div>`}
+   ${ed?`<div class="blk"><div class="blk-h">전형 ${p.stage!=='종료'?'<button class="btn sm" data-act="step-menu">현재 전형 변경</button>':''}</div><div class="steps">${stepsH(p)}</div></div>`:''}
    <div class="blk"><div class="blk-h">일정 <span class="count">${evs.length}</span></div>
     ${evs.length?evs.map(e=>`<div class="li"><span>${(KIND[e.k]||KIND.etc)[0]}</span><span class="num">${md(e.d)}</span><span class="grow">${esc(e.t)}</span>${ed&&e.id?`<button class="x" data-act="rm-pev" data-e="${e.id}" aria-label="일정 지우기">✕</button>`:''}</div>`).join(''):'<div class="muted small">등록된 일정이 없어요</div>'}
     ${ed?`<div class="inline"><input type="date" id="evD" value="${TODAY}" aria-label="날짜"><select id="evK" aria-label="종류">${['apt','int','ann','etc'].map(k=>`<option value="${k}">${KIND[k][0]} ${KIND[k][1]}</option>`).join('')}</select><input type="text" id="evT" placeholder="내용 (예: 1차 면접 14:00)"><button class="btn sm" data-act="add-ev">추가</button></div>`:''}</div>
@@ -758,9 +765,7 @@ function detailHTML(p){
     ${p.tasks.map((t,i)=>`<div class="li ${t.done?'done':''}"><input type="checkbox" class="chk" data-ch="task" data-k="${p.id}:${i}" ${t.done?'checked':''} ${r?'disabled':''} aria-label="완료"><span class="grow t">${esc(t.t)}${t.auto?' <span class="pill mute">자동</span>':''}</span><span class="muted num">${t.due?md(t.due):''}</span>${ed?`<button class="x" data-act="rm-task" data-i="${i}" aria-label="할 일 지우기">✕</button>`:''}</div>`).join('')||'<div class="muted small">할 일이 없어요</div>'}
     ${ed?`<div class="inline"><input type="text" id="tkT" placeholder="할 일 (예: 2번 문항 수정)"><input type="date" id="tkD" value="${TODAY}" aria-label="기한"><button class="btn sm" data-act="add-task">추가</button></div>`:''}</div>
    ${!ed&&p.memo?`<div class="blk"><div class="blk-h">비고</div><div style="white-space:pre-wrap">${esc(p.memo)}</div></div>`:''}
-   <div class="blk"><div class="blk-h">공고 댓글 <span class="count">${pcs.filter(c=>!c.resolved).length}</span></div>${pcs.length?cmtList(p,pcs,[],p.id+':p'):''}
-    ${cc?`<div class="inline"><input type="text" id="pcTxt" placeholder="${away?esc(nm(W))+' 님에게 의견 남기기':'메모나 의견 남기기'}"><button class="btn sm" data-act="add-pc">등록</button></div>`:''}</div>
-   <div class="blk"><div class="blk-h">이력</div><div class="hist">${p.hist.slice().reverse().map(h=>`<div><span class="num">${esc(String(h.d).slice(5,10).replace('-','/'))}</span>${esc(h.t)}</div>`).join('')}</div></div>
+   ${''/* 공고 댓글·이력 칸은 2026-11-22 화면에서 뺌 (이력은 시트에만 기록) */}
    <div class="blk"><div class="blk-h">자소서 문항 · 답변 ${(p.qs.find(q=>q.ver)||{}).ver?`<span class="pill">${esc(p.qs.find(q=>q.ver).ver)}</span>`:''} ${!r&&!ed&&p.qs.length?(S.qMode&&S.qMode.pid===p.id?'<span class="q-hbtn"><button class="btn sm" data-act="qm-cancel">취소</button><button class="btn sm primary" data-act="qm-done">완료</button></span>':'<span class="q-hbtn"><button class="btn sm" data-act="qm-open">수정</button></span>'):''}</div>
     ${ed?ed.qs.map((q,i)=>qEdit(q,i)).join('')+'<button class="btn sm" style="align-self:flex-start" data-act="ed-q-add">+ 문항 추가</button>'
        :S.qMode&&S.qMode.pid===p.id&&!r?S.qMode.qs.map((q,i)=>qModeBlock(p,S.qMode,i)).join('')

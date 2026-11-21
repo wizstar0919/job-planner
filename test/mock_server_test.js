@@ -94,9 +94,11 @@ const openCard=co=>{click('.nav-btn[data-v="board"]');const c=[...d.querySelecto
  ck('p3 is read-only view',d.querySelector('#app').classList.contains('ro')&&d.querySelector('#shareBtn').hidden);
  openCard('댓글전용회사');ck('no edit button',!d.querySelector('[data-act="edit"]'));
  ck('javascript: link not clickable',!d.querySelector('a[href^="javascript"]')&&d.querySelector('.sheet').textContent.includes('javascript:alert(1)'));
- ck('https link still opens',!!d.querySelector('.sheet a[href="https://example.com/ok"]'));ck('comment box present',!!d.querySelector('#pcTxt'));
- d.querySelector('#pcTxt').value='좋아요';click('[data-act="add-pc"]');await sleep(800);
- ck('comment saved to p3 by me',store.p3.comments.length===1&&store.p3.comments[0].by==='me');
+ ck('https link still opens',!!d.querySelector('.sheet a[href="https://example.com/ok"]'));ck('no post-level comment box',!d.querySelector('#pcTxt'));
+ {const box=d.querySelector('.sheet .ans');const tw=d.createTreeWalker(box,4);let n;while((n=tw.nextNode())&&!n.textContent.includes('회사가'));
+  const r=d.createRange();const i=n.textContent.indexOf('회사가');r.setStart(n,i);r.setEnd(n,i+3);const sl=w.getSelection();sl.removeAllRanges();sl.addRange(r);
+  d.dispatchEvent(new w.Event('selectionchange'));click('#selbar [data-act="sel-c"]');d.querySelector('#cTxt').value='좋아요';click('[data-act="c-ok"]');await sleep(800)}
+ ck('sentence comment saved to p3 by me',store.p3.comments.length===1&&store.p3.comments[0].by==='me'&&store.p3.comments[0].quote==='회사가');
  click('[data-act="close"]');
  // 영희 플래너 (읽기 허용) → 댓글도 불가
  click('#profBtn');click('[data-act="view"][data-v="p4"]');openCard('읽기전용회사');
