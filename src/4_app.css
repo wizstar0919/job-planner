@@ -304,5 +304,5 @@ mark[data-cs]{cursor:pointer}
 @container app (max-width:760px){.sum .meta .jd-link{order:9;margin-left:0;flex:1 1 100%;justify-content:center;min-height:40px;font-size:14px}}
 .sum .meta a.jd-link{color:var(--accent);text-decoration:none;font-weight:600;display:inline-flex;align-items:center;gap:4px}
 .sum .meta a.jd-link:hover{border-color:var(--accent)}
-/* 기록 표: 공고가 올라온 사이트 (2026-11-22) */
-.src-tag{display:inline-block;margin-left:6px;padding:0 6px;border-radius:6px;background:var(--line);color:var(--muted);font-size:11px;font-weight:500;line-height:18px;vertical-align:1px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* 기록 표: '출처' 칸 — 공고가 올라온 사이트 (2026-11-22) */
+.ltable td.src{font-size:12.5px;color:var(--muted);white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis}
