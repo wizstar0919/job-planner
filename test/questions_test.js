@@ -64,6 +64,12 @@ const prev = A => [...A.d.querySelectorAll('.qn-item')].map(x => ({ t: x.querySe
     ck('warns when no length found', !!A.d.querySelector('.q-warn') && !A.d.querySelector('.q-warn').hidden);
     typeN(A, 0, 'n', '500');
     ck('warning hides after typing length', A.d.querySelector('.q-warn').hidden);
+    repaste(A, '문항 2 (1,000자) : 지원 동기를 쓰세요');
+    ck('leftover leading colon removed', prev(A)[0].t === '지원 동기를 쓰세요' && prev(A)[0].n === '1000');
+    repaste(A, '문항 ① 지원 이유 + 입행 후 목표 (574자 / 600자)');
+    ck('"문항 ①" removed, max kept', prev(A)[0].t === '지원 이유 + 입행 후 목표' && prev(A)[0].n === '600');
+    repaste(A, '1.본인 장점을 쓰세요.\n(500자 이하)\n[소제목]');
+    ck('limit-only line removed without blank line', prev(A)[0].t === '본인 장점을 쓰세요.\n[소제목]' && prev(A)[0].n === '500');
     A.click('[data-act="qn-cancel"]');
     ck('cancel closes box', !A.d.querySelector('.qnew') && qs(A).length === 6);
   }

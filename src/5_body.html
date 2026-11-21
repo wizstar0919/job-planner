@@ -66,16 +66,18 @@ const qOver=(q,a)=>!!q.n&&qLen(a,q.u)>q.n;
 const qUnitSel=(attrs,u)=>`<select class="mini-sel" ${attrs} aria-label="글자 수 단위"><option value="" ${u!=='byte'?'selected':''}>자</option><option value="byte" ${u==='byte'?'selected':''}>바이트</option></select>`;
 /* 문항 정리 기준: 본문은 원문 그대로. 맨 앞 번호(1. · 문항 1 · Q1 · [문항1] · ①)와 글자 수 표시((500자 이상, 1000자 이하) 등)만 떼어 냄.
    글자 수는 최대만 남김(최소는 버림). 새로 넣는 문항에만 적용 (이미 저장된 문항은 그대로) */
-const Q_NUM=/^\s*(?:\[\s*(?:문항|질문)?\s*\d{1,2}\s*\]|(?:문항|질문|Q)\s*\.?\s*\d{1,2}(?!\d)\s*[.):\]]?|\d{1,2}\s*[.)](?!\d)|\(\d{1,2}\)|[①-⑳])\s*/i;
+const Q_NUM=/^\s*(?:\[\s*(?:문항|질문)?\s*\d{1,2}\s*\]|(?:문항|질문)\s*[①-⑳]|(?:문항|질문|Q)\s*\.?\s*\d{1,2}(?!\d)\s*[.):\]]?|\d{1,2}\s*[.)](?!\d)|\(\d{1,2}\)|[①-⑳])\s*/i;
 const Q_LIM='\\d[\\d,]*\\s*(?:자|bytes?|바이트)';
 function cleanQ(q){
   let t=String(q.t||'').replace(/\r\n?/g,'\n').trim(),n=Math.max(0,parseInt(q.n,10)||0),u=q.u==='byte'?'byte':'';const got=[];
   for(let k=0;k<3;k++){const t2=t.replace(Q_NUM,'');if(t2===t)break;t=t2}
   const take=m=>{got.push(m);return ' '};
+  /* 글자 수 표시만 있는 줄은 줄째로 뺌 (예: '(500자 이하)' 한 줄) */
+  t=t.replace(new RegExp('\\n[ \\t]*[\\(\\[（][^()\\[\\]（）\\n]*?'+Q_LIM+'[^()\\[\\]（）\\n]*[\\)\\]）][ \\t]*(?=\\n|$)','gi'),m=>{got.push(m);return ''});
   t=t.replace(new RegExp('[\\(\\[（][^()\\[\\]（）]*?'+Q_LIM+'[^()\\[\\]（）]*[\\)\\]）]','gi'),take);
   t=t.replace(new RegExp('^\\s*(?:최대\\s*)?'+Q_LIM+'\\s*(?:이상|이내|이하|까지)?\\s*[:：\\-–]?\\s*','i'),take);
   for(let k=0;k<2;k++)t=t.replace(new RegExp('\\s*[-–·:]?\\s*(?:공백\\s*포함\\s*)?(?:최대\\s*)?'+Q_LIM+'\\s*(?:이상|이내|이하|까지)?\\s*$','i'),take);
-  t=t.replace(/[ \t]{2,}/g,' ').replace(/^\s+|\s+$/g,'');
+  t=t.replace(/[ \t]{2,}/g,' ').replace(/[ \t]+\n/g,'\n').replace(/^[\s—–\-:：]+|\s+$/g,'');/* 번호를 떼고 남은 앞쪽 '—', ':' 도 뺌 */
   let mx=0,isB=false;got.forEach(g=>{const re=/(\d[\d,]*)\s*(자|bytes?|바이트)/gi;let m;while((m=re.exec(g))){const v=+m[1].replace(/,/g,'');if(v>mx){mx=v;isB=!/자/.test(m[2])}}});
   if(!n&&mx){n=mx;if(isB)u='byte'}else if(mx&&isB&&!u)u='byte';
   return Object.assign({},q,{t,n,u});
@@ -84,6 +86,7 @@ function cleanQ(q){
 /* 번호 모양과 숫자: '1.' → {k:'d.',n:1}, '문항 2' → {k:'w문항',n:2}, '[문항3]' → {k:'b',n:3}, '(4)' → {k:'p',n:4}, '⑤' → {k:'c',n:5} */
 function qNo(l){let m;
   if((m=l.match(/^\s*\[\s*(?:문항|질문)?\s*(\d{1,2})\s*\]/)))return {k:'b',n:+m[1]};
+  if((m=l.match(/^\s*(?:문항|질문)\s*([①-⑳])/)))return {k:'wc',n:m[1].charCodeAt(0)-0x245F};
   if((m=l.match(/^\s*(문항|질문|Q)\s*\.?\s*(\d{1,2})(?!\d)/i)))return {k:'w'+m[1].toUpperCase(),n:+m[2]};
   if((m=l.match(/^\s*(\d{1,2})\s*([.)])(?!\d)/)))return {k:'d'+m[2],n:+m[1]};
   if((m=l.match(/^\s*\((\d{1,2})\)/)))return {k:'p',n:+m[1]};
