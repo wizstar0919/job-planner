@@ -41,7 +41,6 @@ function doPost(e) {
     if (gate) return out_({ ok: false, error: gate });
     switch (req.action) {
       case 'ping': return out_({ ok: true, people: PEOPLE, usage: usage_() });
-      case 'resetUsage': props_().deleteProperty(usageKey_()); return out_({ ok: true, usage: usage_() }); // 오늘 공고 정리 횟수 0으로 (시험으로 쓴 횟수 되돌리기용)
       case 'load': return out_({ ok: true, who: req.who, tables: loadAll_(who_(req.who)) });
       case 'loadAll': return out_({ ok: true, data: { me: loadAll_('me'), gh: loadAll_('gh') }, usage: usage_(),
         sheets: { me: book_('me').getUrl(), gh: book_('gh').getUrl() } });

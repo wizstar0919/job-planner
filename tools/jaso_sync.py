@@ -16,7 +16,8 @@ import io, json, os, re, sys, datetime, urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CFG = json.load(io.open(os.path.join(HERE, '..', 'config.local.json'), encoding='utf-8'))
-SERVER, PW = CFG['server'], CFG.get('pw', '0000')
+SERVER, PW = CFG['server'], CFG.get('pw')
+if not PW: sys.exit('config.local.json 에 pw(앱 비밀번호)를 넣어 주세요')
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
 
