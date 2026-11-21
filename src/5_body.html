@@ -194,7 +194,7 @@ async function api(action,body){
   catch(e){throw {code:'network'}}
   let j;try{j=await res.json()}catch(e){throw {code:'bad_response'}}
   if(!j.ok&&j.error==='auth'&&action!=='login'){logout(true);throw {code:'auth'}}
-  if(!j.ok)throw {code:j.error||'error',detail:j.detail,usage:j.usage};
+  if(!j.ok)throw {code:j.error||'error',detail:j.detail,usage:j.usage,images:j.images};
   return j;
 }
 const queue=new Map();let saving=false,saveErr=false,timer=null;
@@ -255,7 +255,7 @@ async function refresh(quiet){
 }
 function errMsg(e){const c=e&&e.code;return {network:'인터넷 연결을 확인해 주세요',auth:'다시 로그인해 주세요',login_failed:'구글 로그인을 확인하지 못했어요. 다시 시도해 주세요',forbidden:'권한이 없어요',
   bad_email:'이메일 주소를 확인해 주세요'+(e&&e.detail?' ('+e.detail+')':''),bad_role:'권한 종류가 잘못됐어요',no_server:'서버 주소가 없어요',
-  no_api_key:'공고 정리용 API 키가 아직 연결되지 않았어요',limit:'오늘 공고 정리 한도(한 사람당 하루)를 다 썼어요. 내일 다시 쓸 수 있어요',limit_total:'오늘 서버 전체 공고 정리 한도를 다 썼어요. 내일 다시 써 주세요',need_capture:'링크로 내용을 읽을 수 없는 사이트예요. 캡처를 올려 주세요',img_fetch:'이미지 주소에서 그림을 가져오지 못했어요. 캡처로 올려 주세요',unreadable:'공고를 읽지 못했어요. 글자가 잘 보이게 다시 캡처하거나 본문을 붙여넣어 주세요',
+  no_api_key:'공고 정리용 API 키가 아직 연결되지 않았어요',limit:'오늘 공고 정리 한도(한 사람당 하루)를 다 썼어요. 내일 다시 쓸 수 있어요',limit_total:'오늘 서버 전체 공고 정리 한도를 다 썼어요. 내일 다시 써 주세요',need_capture:'이 링크에서는 공고 본문을 읽지 못했어요. 캡처를 올리거나 본문을 붙여넣어 주세요 (오늘 횟수는 쓰지 않았어요)',img_fetch:'이미지 주소에서 그림을 가져오지 못했어요. 캡처로 올려 주세요',unreadable:'공고를 읽지 못했어요. 글자가 잘 보이게 다시 캡처하거나 본문을 붙여넣어 주세요',
   refusal:'이 공고는 정리할 수 없었어요. 직접 입력해 주세요',rate_limited:'요청이 많아요. 잠시 뒤 다시 시도해 주세요',bad_api_key:'API 키가 맞지 않아요',
   too_long:'공고가 너무 길어요. 필요한 부분만 붙여넣어 주세요',parse_error:'정리 결과를 읽지 못했어요. 다시 시도해 주세요'}[c]||('문제가 생겼어요 ('+(c||'알 수 없음')+')')}
 
@@ -1061,7 +1061,13 @@ async function runExtract(){
       if(fit.length===1){reviewFrom(A,d,input.url||'',fit[0]);return}/* 맞는 직무가 하나뿐이면 바로 확인 화면 */
       A.res={d,url:input.url||''};A.showAll=false;A.phase='pick';addDlg();return}
     reviewFrom(A,d,input.url||'')}
-  catch(e){if(S.add!==A)return;A.phase='input';if(e.code==='need_capture')A.tab='cap';if(e.code==='unreadable'&&e.usage){usage=e.usage;LS.set('usage',usage)}
+  catch(e){if(S.add!==A)return;
+    /* 공고 본문이 그림인 페이지: 그림을 받아 잘라서(긴 그림도 글자 크기 그대로) 다시 정리 — 한 번만 */
+    if(e.code==='page_images'&&(e.images||[]).length&&A.pageImgTried!==A.link){A.pageImgTried=A.link;A.phase='input';A.warn='공고 본문이 그림이라 그림을 가져와서 읽을게요…';addDlg();
+      for(const u of e.images.slice(0,6)){if(S.add!==A)return;await addImgUrl(u)}
+      if(S.add!==A)return;if(A.imgs.length||(A.imgUrls||[]).length){runExtract();return}
+      e={code:'need_capture'}}
+    A.phase='input';if(e.code==='need_capture'||e.code==='page_images')A.tab='cap';if(e.code==='unreadable'&&e.usage){usage=e.usage;LS.set('usage',usage)}
     let why='';if(e.code==='api_error'&&e.detail){try{why=JSON.parse(e.detail).error.message}catch(x){why=String(e.detail).slice(0,120)}}
     A.warn=errMsg(e)+(e.code==='unreadable'&&e.detail?` (${e.detail})`:'')+(why?` · ${why}`:'');addDlg()}
 }

@@ -4,6 +4,7 @@
 #     v=home|cal|board|list|rec   화면      m=list|month|week  달력 보기 방식
 #     open=1 첫 공고 상세 열기 (open=p1 처럼 공고 id 도 됨)    add=1 공고 추가 창    menu=1 계정 메뉴    set=1 설정 창    light=1 / dark=1 밝은·어두운 화면
 #     who=gh  공유받은 플래너(댓글 허용) 보기
+#     pageimg=1  가짜 서버가 '공고 본문이 그림' 응답을 줌 (그림 받아 잘라서 다시 정리하는 흐름 확인용)
 #     do=선택자~선택자::값  차례로 누르기·값 넣기 (값 안의 ¶ 는 줄바꿈)   예) do=.q-add-btn~.qnew textarea::1. 지원 동기 (700자)~[data-act="qn-ok"]
 import sys
 import json, datetime, random, os
@@ -53,7 +54,14 @@ localStorage.setItem('jpl_cfg',JSON.stringify({server:'https://example.invalid',
 localStorage.removeItem('jpl_cache');
 if(q.get('light'))localStorage.setItem('jp_theme','"light"');else if(q.get('dark'))localStorage.setItem('jp_theme','"dark"');else localStorage.removeItem('jp_theme');
 var LOAD=%s;
-window.fetch=async function(u,o){var b=JSON.parse(o.body);return {json:async function(){return b.action==='loadAll'?JSON.parse(JSON.stringify(LOAD)):{ok:true,conflicts:[],revs:{}}}}};
+window.__calls=[];
+window.fetch=async function(u,o){var b=JSON.parse(o.body);window.__calls.push(b.action+(b.input&&b.input.images?':img'+b.input.images.length:''));return {json:async function(){
+  if(b.action==='loadAll')return JSON.parse(JSON.stringify(LOAD));
+  if(q.get('pageimg')&&b.action==='extract'){if(!(b.input.images||[]).length)return {ok:false,error:'page_images',images:['https://x.example/jd.png']};
+    return {ok:true,usage:{used:3,limit:20,hasKey:true},data:{readable:true,co:'그림공고회사',job:'',role:'영업',type:'정규직',ind:'',loc:'서울',applyStart:'',dueKind:'미확인',due:'',steps:['서류'],events:[],qs:[],memo:'그림 '+b.input.images.length+'조각을 읽음',positions:[],short:''}}}
+  if(q.get('pageimg')&&b.action==='fetchImg'){var c=document.createElement('canvas');c.width=800;c.height=3200;var g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,800,3200);g.fillStyle='#000';g.font='40px sans-serif';for(var y=60;y<3200;y+=120)g.fillText('담당업무 자격요건 '+y,40,y);
+    return {ok:true,type:'image/png',data:c.toDataURL('image/png').split(',')[1]}}
+  return {ok:true,conflicts:[],revs:{}}}}};
 window.google={accounts:{id:{initialize:function(){},renderButton:function(){},disableAutoSelect:function(){}}}};
 addEventListener('load',function(){setTimeout(function(){
   var c=function(s){var e=document.querySelector(s);if(e)e.click()};

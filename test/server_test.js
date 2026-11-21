@@ -157,6 +157,32 @@ const cmt = (o) => ({ op: 'upsert', table: 'comments', rows: [o] });
   ck('reject cuts that user sessions', S.ctx.checkSession_(cmSess) === '');
 }
 
+/* ---------- 공고 페이지 읽기 (사이트별 상세 · 그림만 있는 공고) ---------- */
+{
+  const okBody = JSON.stringify({ stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify({ readable: true, co: '회사', role: '영업', job: '', positions: [] }) }] });
+  const S = boot({ props: { USER_LIMIT: '5' } });
+  let api = 0, sent = '';
+  const JD = '<div><h3>담당업무</h3><p>B2B 영업</p><h3>자격요건</h3><p>학사 이상</p></div>' + '<p>회사 소개 문장입니다.</p>'.repeat(30);
+  S.setFetch((url, o) => {
+    if (/anthropic/.test(url)) { api++; sent = o.payload; return { code: 200, text: okBody }; }
+    if (url.indexOf('GI_Read_Comt_Ifrm?Gno=123') >= 0) return { code: 200, text: JD };
+    if (url.indexOf('jobkorea.co.kr/Recruit/GI_Read/123') >= 0) return { code: 200, text: '<html><title>요약</title>상세요강</html>' };
+    if (url.indexOf('api-recruiter.recruiter.co.kr/position/v2/jobflex/9') >= 0)
+      return (o.headers || {}).prefix === 'x.recruiter.co.kr' ? { code: 200, text: JSON.stringify({ title: '수시채용', jobDescription: '<img src="https://x.recruiter.co.kr/upload/jd.png">' }) } : { code: 400, text: '' };
+    if (url.indexOf('x.recruiter.co.kr/career/jobs/9') >= 0) return { code: 200, text: '<html><div id="root"></div></html>' };
+    return { code: 404, text: '' };
+  });
+  let r = S.ctx.extract_({ url: 'https://www.jobkorea.co.kr/Recruit/GI_Read/123' }, OWNER);
+  ck('jobkorea: detail page read and sent to Claude', r.ok && api === 1 && sent.indexOf('담당업무') >= 0);
+  r = S.ctx.extract_({ url: 'https://x.recruiter.co.kr/career/jobs/9' }, OWNER);
+  ck('recruiter: picture-only JD returns picture address, no Claude call', !r.ok && r.error === 'page_images' && r.images[0] === 'https://x.recruiter.co.kr/upload/jd.png' && api === 1);
+  ck('picture-only / unreadable pages do not use the daily count', S.props['U_20261122_' + OWNER] === '1');
+  r = S.ctx.extract_({ url: 'https://x.recruiter.co.kr/career/jobs/9', imageUrls: ['https://x.recruiter.co.kr/upload/jd.png'] }, OWNER);
+  ck('second try with the picture goes to Claude', r.ok && api === 2);
+  r = S.ctx.extract_({ url: 'https://nothing.example.com/job/1' }, OWNER);
+  ck('nothing readable → need_capture (count not used)', !r.ok && r.error === 'need_capture' && S.props['U_20261122_' + OWNER] === '2');
+}
+
 /* ---------- 자소서 올리기 도구 키 ---------- */
 {
   const S = boot({ props: { ADMIN_EMAIL: OWNER }, toolKey: 'k-123' });

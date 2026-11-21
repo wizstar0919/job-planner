@@ -622,6 +622,89 @@ function editShares_(email, pid, fn, selfLeave) {
   } finally { lock.releaseLock(); }
 }
 
+/* ---------- 공고 페이지 읽기 (2026-11-22) ----------
+   요즘 채용 페이지는 겉 페이지에 내용이 없고 따로 불러오는 곳이 많음 → 사이트별로 '진짜 내용이 있는 곳'을 같이 읽음
+   잡코리아: 상세 요강 페이지 / 사람인: view-detail / 리크루터: 공고 데이터 주소(prefix 머리말) / 나인하이어 등 Next.js: 페이지 데이터의 jobPosting.content / 그 밖: 끼워진 상세 창(iframe)
+   반환 { text, images } — images 는 공고 본문 안 그림 주소 (글이 없을 때 앱이 받아 잘라서 다시 보냄) */
+const JD_WORK = ['담당업무', '주요업무', '주요 업무', '업무내용', '업무 내용', '수행업무', '수행 업무', '하는 일', '하게 될', '이런 업무', '이런 일', '직무 소개', '직무소개', '직무내용',
+  '모집부문', '모집 부문', '모집분야', 'Responsibilities', "What you'll do", 'Job Description'];
+const JD_QUAL = ['자격요건', '자격 요건', '지원자격', '지원 자격', '응시자격', '필수', '이런 분', '찾고 있어요', '우대사항', '우대 사항', 'Qualifications', 'Requirements'];
+function jdOk_(t) {
+  t = String(t || '').replace(/[\u200b\u200c\u200d\ufeff\u00ad]/g, '').replace(/\s+/g, ' ');
+  return t.length >= 300 && (JD_WORK.some(w => t.indexOf(w) >= 0) || JD_QUAL.some(w => t.indexOf(w) >= 0));
+}
+const PAGE_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36';
+function fetchHtml_(url, headers) {
+  try {
+    const res = UrlFetchApp.fetch(url, { muteHttpExceptions: true, followRedirects: true,
+      headers: Object.assign({ 'User-Agent': PAGE_UA, 'Accept-Language': 'ko-KR,ko;q=0.9' }, headers || {}) });
+    return res.getResponseCode() < 400 ? res.getContentText() : '';
+  } catch (e) { return ''; }
+}
+function htmlText_(html) {
+  const meta = [];
+  String(html || '').replace(/<meta[^>]+(?:property|name)=["'](?:og:title|og:description|description)["'][^>]*content=["']([^"']+)["'][^>]*>/gi, (m, c) => { meta.push(c); return m; });
+  const text = String(html || '').replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<noscript[\s\S]*?<\/noscript>/gi, ' ')
+    .replace(/<br\s*\/?>/gi, '\n').replace(/<\/(p|div|li|tr|h\d)>/gi, '\n').replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/[\u200b\u200c\u200d\ufeff]/g, '').replace(/[ \t]+/g, ' ').replace(/\n\s*\n+/g, '\n').trim();
+  return (meta.join('\n') + '\n' + text).trim();
+}
+function absUrl_(s, base) {
+  s = String(s || '').trim().replace(/&amp;/g, '&');
+  if (/^https?:\/\//i.test(s)) return s;
+  if (/^\/\//.test(s)) return 'https:' + s;
+  const m = String(base).match(/^(https?:\/\/[^\/?#]+)(\/[^?#]*)?/i);
+  if (!m) return '';
+  if (s.charAt(0) === '/') return m[1] + s;
+  return m[1] + String(m[2] || '/').replace(/[^\/]*$/, '') + s;
+}
+function htmlImgs_(html, base) {
+  const out = [];
+  String(html || '').replace(/<img[^>]+src=["']([^"']+)["']/gi, (m, s) => {
+    const u = absUrl_(s, base);
+    if (/^https?:/i.test(u) && !/logo|icon|favicon|btn|button|banner|blank|spacer|thumb|profile|emoji|\/static\/|bg_/i.test(u)) out.push(u);
+    return m;
+  });
+  return out;
+}
+function pageFetch_(url) {
+  url = String(url || '');
+  if (!/^https?:\/\/[^\s]+$/i.test(url)) return { text: '', images: [] };
+  const html = fetchHtml_(url);
+  let text = htmlText_(html), imgs = [];
+  const add = (h, base) => { if (!h) return; text += '\n' + htmlText_(h); imgs = imgs.concat(htmlImgs_(h, base)); };
+  const host = ((url.match(/^https?:\/\/([^\/?#]+)/i) || [])[1] || '').toLowerCase();
+  let m;
+  if (/(^|\.)jobkorea\.co\.kr$/.test(host) && (m = url.match(/GI_Read\/(\d+)/i)))
+    add(fetchHtml_('https://www.jobkorea.co.kr/Recruit/GI_Read_Comt_Ifrm?Gno=' + m[1]), 'https://www.jobkorea.co.kr/Recruit/');
+  if (/(^|\.)saramin\.co\.kr$/.test(host) && (m = url.match(/rec_idx=(\d+)/i)))
+    add(fetchHtml_('https://www.saramin.co.kr/zf_user/jobs/relay/view-detail?rec_idx=' + m[1] + '&rec_seq=0'), 'https://www.saramin.co.kr/');
+  if (/\.recruiter\.co\.kr$/.test(host) && (m = url.match(/\/jobs\/(\d+)/i))) {
+    try {
+      const j = JSON.parse(fetchHtml_('https://api-recruiter.recruiter.co.kr/position/v2/jobflex/' + m[1],
+        { prefix: host, Referer: 'https://' + host + '/', Accept: 'application/json' }) || '{}');
+      text += '\n' + [j.title, j.startDateTime ? '접수 시작 ' + j.startDateTime : '', j.endDateTime ? '접수 마감 ' + j.endDateTime : ''].filter(Boolean).join('\n');
+      add(j.jobDescription || '', 'https://' + host + '/');
+    } catch (e) {}
+  }
+  const nd = String(html || '').match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
+  if (nd) {
+    try {
+      const pp = (JSON.parse(nd[1]).props || {}).pageProps || {};
+      const jp = pp.jobPosting || pp.posting || pp.job || null;
+      if (jp && typeof jp === 'object') add(['title', 'name', 'content', 'description', 'jobDescription', 'detail'].filter(k => typeof jp[k] === 'string').map(k => jp[k]).join('\n'), url);
+    } catch (e) {}
+  }
+  const frames = [];
+  String(html || '').replace(/<iframe[^>]+src=["']([^"']+)["']/gi, (x, s) => { frames.push(absUrl_(s, url)); return x; });
+  frames.filter(s => /^https?:/i.test(s) && /detail|view|comt|recruit|job/i.test(s) && !/google|facebook|youtube|criteo|doubleclick|kakao/i.test(s))
+    .slice(0, 2).forEach(s => add(fetchHtml_(s), s));
+  const seen = {};
+  imgs = imgs.filter(u => !seen[u] && (seen[u] = 1));
+  return { text: text.trim().slice(0, 60000), images: imgs.slice(0, 8) };
+}
+
 /* ---------- 공고 자동 정리 ---------- */
 function dayKey_() { return Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyyMMdd'); }
 function usageKey_() { return 'USAGE_' + dayKey_(); }              // 서버 전체
@@ -680,21 +763,7 @@ function fetchImgFor_(email, url) {
   return fetchImg_(url);
 }
 
-function pageText_(url) {
-  url = String(url || '');
-  if (!/^https?:\/\/[^\s]+$/i.test(url)) return '';
-  const res = UrlFetchApp.fetch(url, { muteHttpExceptions: true, followRedirects: true,
-    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36', 'Accept-Language': 'ko-KR,ko;q=0.9' } });
-  if (res.getResponseCode() >= 400) return '';
-  let html = res.getContentText();
-  const meta = [];
-  html.replace(/<meta[^>]+(?:property|name)=["'](?:og:title|og:description|description)["'][^>]*content=["']([^"']+)["'][^>]*>/gi, (m, c) => { meta.push(c); return m; });
-  const text = html.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<noscript[\s\S]*?<\/noscript>/gi, ' ')
-    .replace(/<br\s*\/?>/gi, '\n').replace(/<\/(p|div|li|tr|h\d)>/gi, '\n').replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
-    .replace(/[ \t]+/g, ' ').replace(/\n\s*\n+/g, '\n').trim();
-  return (meta.join('\n') + '\n' + text).trim().slice(0, 60000);
-}
+function pageText_(url) { return pageFetch_(url).text; } // 옛 이름 (pageFetch_ 로 바뀜)
 
 /* 이미지 주소 → 서버가 대신 받아서 앱에 돌려줌 (앱이 잘라서 글자 크기를 지킨 채로 보내도록) */
 function fetchImg_(url) {
@@ -733,8 +802,14 @@ function extractRun_(input, email, key, st) {
   const content = [];
   let pageTxt = '';
   if (input.url) {
-    pageTxt = pageText_(input.url);
-    if (pageTxt.length < 400 && !(input.images && input.images.length) && !(input.imageUrls && input.imageUrls.length) && !input.text) return { ok: false, error: 'need_capture' };
+    const pf = pageFetch_(input.url);
+    pageTxt = pf.text;
+    const given = (input.images && input.images.length) || (input.imageUrls && input.imageUrls.length) || input.text;
+    if (!given && !jdOk_(pageTxt)) {
+      // 공고 본문 글이 없음 → Claude 를 부르지 않음(횟수 안 씀). 본문이 그림이면 그림 주소를 돌려줘서 앱이 받아 잘라서 다시 보내게 함
+      if (pf.images.length) return { ok: false, error: 'page_images', images: pf.images };
+      return { ok: false, error: 'need_capture' };
+    }
   }
   const MAX_IMGS = 20;
   (input.images || []).slice(0, MAX_IMGS).forEach(img => {
