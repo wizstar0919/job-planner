@@ -111,6 +111,22 @@ const prev = A => [...A.d.querySelectorAll('.qn-item')].map(x => ({ t: x.querySe
     ck('shared planner: no add / edit for questions', !A.d.querySelector('.q-add-btn') && !A.d.querySelector('[data-act="qm-open"]') && !!A.d.querySelector('.q'));
   }
   {
+    // 마감 임박: 제출한 공고도 마감 전까지 '제출함'으로 보임, 종료는 안 보임
+    const iso = n => { const d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }; // 한국 날짜 기준
+    const st = mkStore();
+    st.me.posts.push({ id: 'h1', co: '제출한회사', stage: '제출', submitted: iso(0), dueKind: '확정', due: iso(1) + 'T08:00', steps: '서류', cur: '0', rev: 'r1' });
+    st.me.posts.push({ id: 'h2', co: '작성중회사', stage: '작성중', dueKind: '확정', due: iso(2) + 'T18:00', steps: '서류', cur: '0', rev: 'r1' });
+    st.me.posts.push({ id: 'h3', co: '끝난회사', stage: '종료', result: '불합격', dueKind: '확정', due: iso(1) + 'T18:00', steps: '서류', cur: '0', rev: 'r1' });
+    const A = app({ store: st }); await sleep(80);
+    for (const v of ['home', 'cal']) {
+      A.click(`.nav-btn[data-v="${v}"]`);
+      const sec = [...A.d.querySelectorAll('#main .sec')].find(x => /마감 임박/.test(x.querySelector('h3') ? x.querySelector('h3').textContent : ''));
+      const rows = sec ? [...sec.querySelectorAll('.row')].map(r => r.textContent) : [];
+      const i1 = rows.findIndex(t => t.includes('작성중회사')), i2 = rows.findIndex(t => t.includes('제출한회사'));
+      ck(v + ': submitted post still shown as 제출함 (after unsubmitted)', i1 >= 0 && i2 > i1 && rows[i2].includes('제출함') && rows[i2].includes('D-1') && !rows.some(t => t.includes('끝난회사')));
+    }
+  }
+  {
     // 정보 수정 화면: 글자 수 실시간도 같은 기준
     const A = app(); await sleep(80); A.openP1(); A.click('[data-act="edit"]');
     A.setF('.sheet [data-q="0"][data-qf="a"]', 'ab c\n\nd');

@@ -37,6 +37,7 @@ for i, co in enumerate(cos):
         tasks.append({'id': f't{i}', 'pid': f'p{i}', 't': '1번 문항 작성', 'due': d(0), 'done': '', 'doneAt': '', 'auto': 'Y'})
 for k, n in ((1, 1), (6, 2), (13, 3)):
     posts[k].update(stage='작성중', dueKind='확정', due=d(n) + 'T18:00')
+posts[2].update(dueKind='확정', due=d(1) + 'T08:00')  # 제출한 공고도 마감 임박에 '제출함'으로 보이는지
 events.append({'id': 'esub', 'pid': 'p2', 'd': d(2), 'k': 'sub', 't': '서류 제출'})
 tasks.append({'id': 'tg', 'pid': '', 't': '이력서 사진 바꾸기', 'due': d(0), 'done': '', 'doneAt': '', 'auto': ''})
 comments.append({'id': 'c1', 'pid': 'p1', 'qi': '0', 'quote': '영업 방식', 'text': '조금 더 구체적으로', 'by': 'gh', 'at': d(-1), 'replies': '[]', 'resolved': '', 'read': '', 'ver': ''})

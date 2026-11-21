@@ -687,6 +687,9 @@ mark[data-cs]{cursor:pointer}
 .q-check span{font-weight:400;font-size:12.5px}
 .qn-item{display:flex;flex-direction:column;gap:6px;padding:8px 0;border-bottom:1px dashed var(--line)}
 .q-warn{color:var(--urgent);font-size:12px;white-space:normal}
+/* 마감 임박: 이미 제출한 공고는 흐리게 + 회색 D-n (2026-11-22) */
+.row.sub-done{opacity:.6}
+.dd.sub{background:var(--line);color:var(--muted)}
 </style>
 </head>
 <body>
@@ -971,6 +974,10 @@ const owner=p=>Object.keys(DB).find(w=>DB[w].posts.includes(p))||S.who;
 const mine=p=>owner(p)===S.me;
 const upd=p=>p.updated||p.hist[p.hist.length-1].d;
 const isOpen=p=>p.stage==='관심'||p.stage==='작성중';
+/* 마감 임박: 마감 확정 · 오늘~HOT_DAYS일 안 · 종료 아님. 이미 제출한 공고도 마감 전까지 '제출함'으로 흐리게 같이 보여 줌 (2026-11-22) */
+const doneSub=p=>!isOpen(p)&&p.stage!=='종료';
+const isHot=p=>p.stage!=='종료'&&p.dueKind==='확정'&&p.due&&diff(p.due)>=0&&diff(p.due)<=HOT_DAYS;
+const hotSort=(a,b)=>(doneSub(a)-doneSub(b))||a.due.localeCompare(b.due);/* 아직 안 낸 공고가 위 */
 const shortCo=s=>String(s||'').replace(/\(주\)|㈜|주식회사/g,'').replace(/\s*\([^)]*\)/g,'').trim();
 const shortRole=s=>String(s||'').replace(/\s*\([^)]*\)/g,'').trim();
 const label=p=>{const r=shortRole(p.role||p.job);return r?`[${shortCo(p.co)}] ${r}`:`[${shortCo(p.co)}]`};
@@ -1089,8 +1096,8 @@ function calSide(evm,mode,nar){
   const today=tasksOf(S.who).filter(x=>x.t.due&&diff(x.t.due)<=0&&!x.t.done).sort((a,b)=>a.t.due.localeCompare(b.t.due));
   const left=today.length;
   let h=`<section class="sec"><h3>오늘 할 일 <span class="count">${left}</span></h3><div class="list">${today.length?today.map(taskRowH).join(''):'<div class="empty">오늘 기한인 할 일이 없어요</div>'}</div></section>`;
-  const hot=vis(S.who).filter(p=>isOpen(p)&&p.dueKind==='확정'&&p.due&&diff(p.due)>=0&&diff(p.due)<=HOT_DAYS).sort((a,b)=>a.due.localeCompare(b.due));
-  if(hot.length)h+=`<section class="sec"><h3>🔥 마감 임박 공고 <span class="count">${hot.length}</span></h3><div class="list">${hot.map(p=>{const n=diff(p.due);return rowOpen(p.id,'',`<span class="dd ${ddC(n)}">${ddL(n)}</span><span class="grow"><div class="t oneline" title="${esc(full(p))}">${esc(label(p))}</div><div class="s">${md(p.due)} ${p.due.slice(11,16)} 마감</div></span><span class="chev">›</span>`)}).join('')}</div></section>`;
+  const hot=vis(S.who).filter(isHot).sort(hotSort);
+  if(hot.length)h+=`<section class="sec"><h3>🔥 마감 임박 공고 <span class="count">${hot.length}</span></h3><div class="list">${hot.map(p=>{const n=diff(p.due),sb=doneSub(p);return rowOpen(p.id,sb?'sub-done':'',`<span class="dd ${sb?'sub':ddC(n)}">${ddL(n)}</span><span class="grow"><div class="t oneline" title="${esc(full(p))}">${esc(label(p))}</div><div class="s">${sb?'<span class="pill ok">제출함</span> ':''}${md(p.due)} ${esc(p.due.slice(11,16))} 마감</div></span><span class="chev">›</span>`)}).join('')}</div></section>`;
   if(!(mode==='week'&&nar)){
     const sel=evm[S.calSel]||[];
     if(nar&&!sel.length){/* 휴대폰: 고른 날에 일정이 없으면 앞으로 7일 */
@@ -1138,7 +1145,7 @@ function homeHTML(){
   const soon=all.filter(x=>!x.t.done&&x.t.due&&diff(x.t.due)>0&&diff(x.t.due)<=7).sort((a,b)=>a.t.due.localeCompare(b.t.due));
   const open=posts.filter(isOpen);
   const over=open.filter(p=>p.dueKind==='확정'&&p.due&&diff(p.due)<0).sort((a,b)=>a.due.localeCompare(b.due));
-  const urg=open.filter(p=>p.dueKind==='확정'&&p.due&&diff(p.due)>=0&&diff(p.due)<=HOT_DAYS).sort((a,b)=>a.due.localeCompare(b.due));
+  const urg=posts.filter(isHot).sort(hotSort);
   const unk=open.filter(p=>p.dueKind==='미확인');
   const up=[];posts.forEach(p=>(p.events||[]).forEach(e=>{const n=diff(e.d);if(n>=0&&n<=7)up.push({p,e,n})}));up.sort((a,b)=>a.n-b.n);
   const wait=posts.filter(p=>p.stage==='제출').sort((a,b)=>String(a.submitted).localeCompare(String(b.submitted)));
@@ -1149,7 +1156,7 @@ function homeHTML(){
   const tkH=(today.length?today.map(taskRow).join(''):`<div class="empty">오늘 기한인 할 일이 없어요</div>`)+(soon.length?`<div class="sub-h">다가오는 할 일</div>`+soon.map(taskRow).join(''):'')+(ro()?'':`<div class="inline"><input type="text" id="gtT" placeholder="공고와 상관없는 할 일 (예: 스터디 발표 준비)"><input type="date" id="gtD" value="${TODAY}" aria-label="기한"><button class="btn sm" data-act="add-gtask">추가</button></div>`);
   const ncH=nc.map(({p,c})=>`<div class="row click newc" role="button" tabindex="0" data-act="open-c" data-id="${p.id}" data-c="${esc(c.id)}"><span class="kind">💬</span><span class="grow"><div class="t">${esc(nm(c.by)||c.by)} · ${esc(label(p))}${c.qi>=0?` · ${c.qi+1}번`:' · 공고 댓글'}</div><div class="s oneline">${c.quote?'“'+esc(c.quote)+'” — ':''}${esc(c.text)}</div></span><span class="chev">›</span></div>`).join('');
   const overH=over.map(p=>{const n=diff(p.due);return `<div class="row click overdue" role="button" tabindex="0" data-act="open" data-id="${p.id}"><span class="dd urgent">${ddL(n)}</span><span class="grow"><div class="t oneline">${esc(label(p))}</div><div class="s"><span class="late">마감 지남 · 미제출</span> · ${md(p.due)} ${p.due.slice(11,16)}</div>${ro()?'':`<div class="acts"><button class="btn sm" data-act="od-sub" data-id="${p.id}">제출했음</button><button class="btn sm" data-act="od-ext" data-id="${p.id}">마감 연장</button><button class="btn sm" data-act="od-drop" data-id="${p.id}">포기</button></div>`}</span></div>`}).join('');
-  const urgH=urg.map(p=>{const n=diff(p.due);return rowOpen(p.id,'',`<span class="dd ${ddC(n)}">${ddL(n)}</span><span class="grow"><div class="t oneline" title="${esc(full(p))}">${esc(label(p))}</div><div class="s">${COLNAME[p.stage]}${p.qs.length?` · 문항 ${p.qs.filter(q=>q.st==='제출본').length}/${p.qs.length}`:''} · ${md(p.due)} ${p.due.slice(11,16)}</div></span><span class="chev">›</span>`)}).join('');
+  const urgH=urg.map(p=>{const n=diff(p.due),sb=doneSub(p);return rowOpen(p.id,sb?'sub-done':'',`<span class="dd ${sb?'sub':ddC(n)}">${ddL(n)}</span><span class="grow"><div class="t oneline" title="${esc(full(p))}">${esc(label(p))}</div><div class="s">${sb?'<span class="pill ok">제출함</span> ':''}${sb&&p.stage==='제출'?'':COLNAME[p.stage]+' · '}${!sb&&p.qs.length?`문항 ${p.qs.filter(q=>q.st==='제출본').length}/${p.qs.length} · `:''}${md(p.due)} ${esc(p.due.slice(11,16))}</div></span><span class="chev">›</span>`)}).join('');
   const unkH=unk.map(p=>rowOpen(p.id,'',`<span class="dd unk">미확인</span><span class="grow"><div class="t oneline">${esc(label(p))}</div><div class="s">${esc(dueText(p))}</div></span><span class="chev">›</span>`)).join('');
   const dueCnt=over.length+urg.length;
   const upH=up.length?up.map(({p,e})=>rowOpen(p.id,'',`<span class="kind">${(KIND[e.k]||KIND.etc)[0]}</span><span class="grow"><div class="t">${esc(e.t)}</div><div class="s oneline">${md(e.d)} · ${esc(label(p))}</div></span><span class="chev">›</span>`)).join(''):`<div class="empty">앞으로 7일 동안 잡힌 전형 일정이 없어요</div>`;

@@ -291,3 +291,6 @@ mark[data-cs]{cursor:pointer}
 .q-check span{font-weight:400;font-size:12.5px}
 .qn-item{display:flex;flex-direction:column;gap:6px;padding:8px 0;border-bottom:1px dashed var(--line)}
 .q-warn{color:var(--urgent);font-size:12px;white-space:normal}
+/* 마감 임박: 이미 제출한 공고는 흐리게 + 회색 D-n (2026-11-22) */
+.row.sub-done{opacity:.6}
+.dd.sub{background:var(--line);color:var(--muted)}
