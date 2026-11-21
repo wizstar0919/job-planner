@@ -9,20 +9,20 @@
   python jaso_sync.py resolve <자소서.md 또는 회사 폴더> <댓글id> [<댓글id> ...] [--post ID]
       반영한 댓글을 '해결'로 접음
 
-서버 주소·비밀번호는 ../config.local.json (git 제외) 의 server / pw 를 씀.
+서버 주소·도구 키는 ../config.local.json (git 제외) 의 server / toolKey 를 씀 (2026-11-22 구글 로그인 버전부터).
 Claude가 MD를 다시 읽지 않고 이 프로그램만 돌리도록 만든 것 (토큰 절약).
 """
 import io, json, os, re, sys, datetime, urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CFG = json.load(io.open(os.path.join(HERE, '..', 'config.local.json'), encoding='utf-8'))
-SERVER, PW = CFG['server'], CFG.get('pw')
-if not PW: sys.exit('config.local.json 에 pw(앱 비밀번호)를 넣어 주세요')
+SERVER, KEY = CFG['server'], CFG.get('toolKey')
+if not KEY: sys.exit('config.local.json 에 toolKey(도구 키)를 넣어 주세요')
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
 
 def api(action, **body):
-    data = json.dumps(dict(body, pw=PW, action=action), ensure_ascii=False).encode('utf-8')
+    data = json.dumps(dict(body, toolKey=KEY, action=action), ensure_ascii=False).encode('utf-8')
     req = urllib.request.Request(SERVER, data=data, headers={'Content-Type': 'text/plain;charset=utf-8'})
     with urllib.request.urlopen(req, timeout=180) as r:   # 302 → GET 으로 따라감 (Apps Script 방식)
         j = json.loads(r.read().decode('utf-8'))
@@ -111,7 +111,10 @@ def cmd_push(argv):
     else:
         if p['stage'] == '관심': post['stage'] = '작성중'
         histt = '자소서 %s 반영' % (ver or '')
-    ops = [{'op': 'replace', 'table': 'qs', 'key': 'pid', 'value': p['id'], 'rows': rows},
+    keep = {r['id'] for r in rows}
+    ops = [{'op': 'upsert', 'table': 'qs', 'rows': rows}] + \
+          [{'op': 'remove', 'table': 'qs', 'key': 'id', 'value': q['id']} for q in old if q['id'] not in keep] + [
+
            {'op': 'upsert', 'table': 'posts', 'rows': [post]},
            {'op': 'upsert', 'table': 'hist', 'rows': [{'id': '%s_h%s' % (p['id'], datetime.datetime.now().strftime('%y%m%d%H%M%S')), 'pid': p['id'], 'd': today.isoformat(), 't': histt.strip()}]}]
     if dry:
@@ -119,7 +122,7 @@ def cmd_push(argv):
         for i, r in enumerate(rows):
             print('  문항 %d · 제한 %s자 · 답변 %d자 · %s…' % (i + 1, r['n'], len(r['a'].replace('\n', '')), r['t'][:30].replace('\n', ' ')))
         return
-    api('batch', who='me', ops=ops)
+    api('batch', pid='me', ops=ops)
     lens = '/'.join(str(len(q['a'].replace('\n', ''))) for q in qs)
     print('올렸어요: %s · 문항 %d개 (답변 %s자) · %s%s' % (p['co'], len(qs), lens, verlabel or '버전 없음',
           ' · 🔒 제출본, 단계 제출' if submit else ''))
@@ -149,7 +152,7 @@ def cmd_resolve(argv):
     have = {c['id'] for c in me['comments'] if c['pid'] == p['id']}
     bad = [i for i in ids if i not in have]
     if bad: sys.exit('이 공고 댓글이 아니에요: ' + ', '.join(bad))
-    api('batch', who='me', ops=[{'op': 'upsert', 'table': 'comments', 'rows': [{'id': i, 'resolved': 'Y'} for i in ids]}])
+    api('batch', pid='me', ops=[{'op': 'upsert', 'table': 'comments', 'rows': [{'id': i, 'resolved': 'Y'} for i in ids]}])
     print('해결로 접었어요: %d개' % len(ids))
 
 if __name__ == '__main__':

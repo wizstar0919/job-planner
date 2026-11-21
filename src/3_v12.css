@@ -51,3 +51,40 @@ mark.on{background:var(--hl-on)}
   .cell{padding:2px}
   .prof span.nm{max-width:72px;overflow:hidden;text-overflow:ellipsis}
 }
+/* 로그인 시험판: 공유 버튼 · 로그인 화면 · 공유 창 */
+[hidden]{display:none!important}
+.top .peek{margin-left:0}
+.top .peek-on{margin-left:auto}
+.gbtn{display:flex;justify-content:center;min-height:44px;color-scheme:light}
+.test-tag{display:inline-block;font-size:12px;font-weight:600;color:var(--accent);background:var(--accent-soft);border-radius:999px;padding:2px 10px;margin-left:6px;vertical-align:middle}
+.sh-add{display:flex;gap:8px}
+.sh-add input{flex:1;min-width:0}
+.sh-list{display:flex;flex-direction:column;gap:2px}
+.sh-row{display:flex;align-items:center;gap:10px;padding:8px 2px;position:relative}
+.sh-row .av{width:32px;height:32px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-weight:700;flex:none}
+.sh-row .grow{min-width:0}
+.sh-row .grow b,.sh-row .grow .small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sh-role{border:0;background:transparent;color:var(--muted);font-size:13px;padding:4px 6px;border-radius:6px;white-space:nowrap}
+.sh-role:hover{background:var(--surface-2);color:var(--fg)}
+.sh-menu{position:absolute;right:0;top:100%;z-index:5;width:min(300px,86vw);background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 24px var(--shadow);padding:6px;display:flex;flex-direction:column}
+.sh-menu button{border:0;background:transparent;text-align:left;padding:8px 10px;border-radius:8px;display:flex;flex-direction:column;gap:2px}
+.sh-menu button:hover{background:var(--surface-2)}
+.sh-menu button.cur b::after{content:' ✓';color:var(--accent)}
+.sh-menu .rm{color:var(--urgent);border-top:1px solid var(--line);border-radius:0 0 8px 8px;margin-top:4px}
+.sh-gen{display:flex;align-items:center;gap:10px;padding:8px 2px}
+.acct-row{display:flex;align-items:stretch;gap:6px}
+.acct-row>button{flex:1;min-width:0}
+.menu-list .ovl-tg{flex:none;white-space:nowrap;font-size:12px;font-weight:400;padding:8px 10px;color:var(--muted)}
+.dlg-b a.btn{align-self:flex-start;text-decoration:none}
+/* 달력 색 = 일정 종류 */
+/* 서류 마감(가장 많음) = 차분한 파랑, 제출 일정 = 자주색 (공고 단계의 '제출' 색과는 따로) */
+:root{--ev-sub:#A3307A;--ev-sub-soft:#F9E2F0}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--ev-sub:#EE8FC6;--ev-sub-soft:#3A1E30}}
+:root[data-theme="dark"]{--ev-sub:#EE8FC6;--ev-sub-soft:#3A1E30}
+.st-due{--col:var(--st-sub);--soft:var(--st-sub-soft)}
+.st-evsub{--col:var(--ev-sub);--soft:var(--ev-sub-soft)}
+.st-ann{--col:var(--st-write);--soft:var(--st-write-soft)}
+.bad-url{font-size:12px;color:var(--urgent)}
+/* 달력 바: 자리가 모자라면 바는 그대로 두고 글씨 끝만 바 색으로 흐리게 */
+.cal .ev.fade{-webkit-mask-image:none;mask-image:none;position:relative}
+.cal .ev.fade::after{content:"";position:absolute;top:0;right:0;bottom:0;width:28px;border-radius:0 4px 4px 0;pointer-events:none;background:linear-gradient(to right,transparent,var(--soft,var(--surface)))}
