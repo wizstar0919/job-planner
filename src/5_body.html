@@ -711,6 +711,8 @@ function qBlock(p,q,i,r){
    ${cs.length?qCmts(p,cs,lost,placed,p.id+':'+i):''}</div>`;
 }
 function ansDirty(){const ta=$('#ansTa');if(!ta||!S.editQ)return false;const p=find(S.editQ.pid),q=p&&p.qs[S.editQ.qi];return !!q&&ta.value!==(q.a||'')}
+function qmDirty(){const o=S.qMode,p=o&&find(o.pid);if(!p)return false;const by=Object.fromEntries(p.qs.map(q=>[q.id,q]));
+  return o.qs.some(q=>{const x=by[q.id];return q.del||!x||String(q.t)!==String(x.t)||String(q.n||0)!==String(x.n||0)||String(q.u||'')!==String(x.u||'')||String(q.a||'')!==String(x.a||'')})}
 /* [수정] 모드의 문항 칸 (S.qMode.qs[i] 를 고침. 삭제는 표시만 해 두고 [완료] 때 반영) */
 function qModeBlock(p,o,i){
   const q=o.qs[i],nc=p.comments.filter(c=>c.qi===i).length;
@@ -718,6 +720,9 @@ function qModeBlock(p,o,i){
   return `<div class="q qe q-mode"><b>${i+1}번 문항</b>
    <textarea data-qm="${i}" data-qx="t" aria-label="${i+1}번 문항 원문" style="min-height:52px">${esc(q.t)}</textarea>
    <div class="qr">글자 수 제한 <input type="number" min="0" step="50" data-qm="${i}" data-qx="n" value="${esc(q.n||'')}" placeholder="0" aria-label="글자 수 제한">${qUnitSel(`data-qm="${i}" data-qx="u"`,q.u)}</div>
+   <b class="qm-ah">답변</b>
+   ${q.lock?`<div class="ans">${esc(q.a||'')}</div><div class="qr"><span class="muted small">🔒 제출본이라 답변은 잠겨 있어요</span></div>`
+     :`<textarea class="ans-ta" data-qm="${i}" data-qx="a" aria-label="${i+1}번 답변" placeholder="답변을 쓰거나 붙여넣어 주세요">${esc(q.a||'')}</textarea><div class="qr"><span class="cnt ${qOver(q,q.a)?'over':''}" data-qmc="${i}">${qCnt(q,q.a)}</span></div>`}
    <div class="q-foot"><button class="link-btn small del-btn" data-act="qm-del" data-i="${i}">🗑 이 문항 삭제</button></div></div>`;
 }
 /* + 문항 추가: ① 붙여넣기 → ② 정리한 결과를 빨간 안내와 함께 보여 주고 확인 → 추가 */
@@ -741,7 +746,7 @@ function qAdd(p,list){const b=snap(p);list.forEach(q=>p.qs.push({id:uid(),t:q.t,
   ensureAuto(p);S.qNew=null;changed(p,b,list.length>1?`문항 ${list.length}개를 추가했어요`:'문항을 추가했어요')}
 /* 입력 중인 문항 값을 상태에 보관 (새로 불러와 화면이 다시 그려져도 안 사라지게) */
 function qKeep(el){const k=el.dataset.qx;
-  if(el.dataset.qm!=null){const q=S.qMode&&S.qMode.qs[+el.dataset.qm];if(q)q[k]=el.value;return}
+  if(el.dataset.qm!=null){const q=S.qMode&&S.qMode.qs[+el.dataset.qm];if(q){q[k]=el.value;if(k==='a'||k==='n'||k==='u'){const c=document.querySelector('[data-qmc="'+el.dataset.qm+'"]');if(c){c.textContent=qCnt(q,q.a);c.classList.toggle('over',qOver(q,q.a))}}}return}
   if(!S.qNew)return;if(el.dataset.qk!=null){const q=S.qNew.split&&S.qNew.split[+el.dataset.qk];if(q){q[k]=el.value;if(k==='n'){const w=el.parentNode.querySelector('.q-warn');if(w)w.hidden=!!parseInt(el.value,10)}}return}S.qNew[k]=el.value}
 /* 정보 수정 모드: 문항·답변 편집 */
 function qEdit(q,i){
@@ -1143,6 +1148,7 @@ document.addEventListener('click',e=>{
   if(t.tagName==='INPUT'||t.tagName==='SELECT'||t.tagName==='LABEL')return;
   const a=t.dataset.act,v=t.dataset.v,id=t.dataset.id;
   const p=S.open?find(S.open):null;
+  if(S.qMode&&['close','open','open-c','nav','edit','qn-open','edit-a','view'].includes(a)&&qmDirty()){toast('고치던 문항·답변이 있어요. [완료]나 [취소]를 눌러 주세요');return}
   /* 답변을 쓰는 중에 다른 곳으로 가면 쓴 글이 날아감 → 막고 알려 줌 */
   if(S.editQ&&['close','open','open-c','nav','edit','qm-open','qn-open','edit-a','view'].includes(a)){
     if(ansDirty()){toast('쓰던 답변이 있어요. 저장하거나 취소해 주세요');const ta=$('#ansTa');if(ta)ta.focus();return}
@@ -1203,13 +1209,15 @@ document.addEventListener('click',e=>{
     case 'qn-one':if(S.qNew){const q=cleanQ({t:S.qNew.t});S.qNew.split=q.t?[q]:null;renderLayer()}break;
     case 'qn-add':if(p&&S.qNew&&S.qNew.split&&canEdit(owner(p))){const L=S.qNew.split.map(q=>({t:String(q.t||'').trim(),n:Math.max(0,parseInt(q.n,10)||0),u:q.u==='byte'?'byte':''})).filter(q=>q.t);
       if(!L.length){toast('문항을 적어 주세요');break}qAdd(p,L)}break;
-    case 'qm-open':if(p&&canEdit(owner(p))){S.qMode={pid:p.id,qs:p.qs.map(q=>({id:q.id,t:q.t,n:q.n||'',u:q.u||'',a:q.a,del:false}))};S.qNew=null;renderLayer()}break;
+    case 'qm-open':if(p&&canEdit(owner(p))){S.qMode={pid:p.id,qs:p.qs.map(q=>({id:q.id,t:q.t,n:q.n||'',u:q.u||'',a:q.a||'',lock:!!q.lock,del:false}))};S.qNew=null;renderLayer()}break;
     case 'qm-cancel':S.qMode=null;renderLayer();break;
     case 'qm-del':if(S.qMode){const q=S.qMode.qs[+t.dataset.i];if(q){q.del=!q.del;renderLayer()}}break;
     case 'qm-done':if(p&&S.qMode&&canEdit(owner(p))){const o=S.qMode,b=snap(p),oldIds=p.qs.map(q=>q.id),by=Object.fromEntries(p.qs.map(q=>[q.id,q]));
       if(o.qs.some(q=>!q.del&&!String(q.t).trim())){toast('비어 있는 문항이 있어요. 적거나 삭제해 주세요');break}
-      p.qs=o.qs.filter(q=>!q.del&&by[q.id]).map(q=>{const x=by[q.id];const c=q.t!==x.t?cleanQ({t:q.t,n:q.n,u:q.u}):q;return Object.assign(x,{t:String(c.t).trim(),n:Math.max(0,parseInt(c.n,10)||0),u:c.u==='byte'?'byte':''})});
-      remapCmts(p,oldIds);S.qMode=null;const nd=o.qs.filter(q=>q.del).length;changed(p,b,nd?`문항 ${nd}개를 지웠어요`:'문항을 고쳤어요')}break;
+      p.qs=o.qs.filter(q=>!q.del&&by[q.id]).map(q=>{const x=by[q.id];const c=q.t!==x.t?cleanQ({t:q.t,n:q.n,u:q.u}):q;const o2=Object.assign(x,{t:String(c.t).trim(),n:Math.max(0,parseInt(c.n,10)||0),u:c.u==='byte'?'byte':''});
+        if(!x.lock&&String(q.a??'')!==(x.a||'')){o2.a=String(q.a??'');if(o2.st==='미작성'&&o2.a.trim())o2.st='초안'}/* 답변도 [수정]에서 같이 고침 */
+        return o2});
+      remapCmts(p,oldIds);S.qMode=null;const nd=o.qs.filter(q=>q.del).length;changed(p,b,nd?`문항 ${nd}개를 지웠어요`:'문항·답변을 고쳤어요')}break;
     case 'edit-a':if(p&&canEdit(owner(p))&&p.qs[+t.dataset.i]&&!p.qs[+t.dataset.i].lock){S.editQ={pid:p.id,qi:+t.dataset.i};renderLayer();const ta=$('#ansTa');if(ta){ta.focus();ta.setSelectionRange(ta.value.length,ta.value.length)}}break;
     case 'cancel-a':S.editQ=null;renderLayer();break;
     case 'save-a':if(p){const q=p.qs[+t.dataset.i],ta=$('#ansTa');if(!q||!ta||q.lock){S.editQ=null;renderLayer();break}if(ta.value===(q.a||'')){S.editQ=null;renderLayer();break}const b=snap(p);q.a=ta.value;if(q.st==='미작성'&&q.a.trim())q.st='초안';S.editQ=null;changed(p,b,'답변을 저장했어요')}break;
@@ -1264,6 +1272,7 @@ document.addEventListener('click',e=>{
   }
 });
 document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&S.qMode&&!S.dlg&&qmDirty()){toast('고치던 문항·답변이 있어요. [완료]나 [취소]를 눌러 주세요');return}
   if(e.key==='Escape'&&S.editQ&&!S.dlg){if(ansDirty()){toast('쓰던 답변이 있어요. 저장하거나 취소해 주세요');return}S.editQ=null;renderLayer();return}
   if(e.key==='Escape'){if(S.dlg)closeDlg();else if(S.open){S.open=null;S.editQ=null;render()}return}
   if(e.key==='Enter'&&e.target.id==='shEm'){e.preventDefault();const b=document.querySelector('[data-act="sh-add"]');if(b)b.click();return}

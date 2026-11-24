@@ -52,6 +52,22 @@ const typeA = (A, v) => { const ta = A.d.querySelector('#ansTa'); ta.value = v; 
     ck('no script errors', !A.errs.length);
   }
   {
+    // 문항 [수정] 에서도 답변을 같이 고침
+    const A = H.app(html, { store: mkStore(), meta, co: '답변회사' }); await sleep(80); A.openP1();
+    A.click('[data-act="qm-open"]');
+    const ta = A.d.querySelector('[data-qm="0"][data-qx="a"]');
+    ck('[수정]: answer textarea under each 문항', !!ta && !!A.d.querySelector('[data-qm="1"][data-qx="a"]'));
+    ck('[수정]: locked answer not editable', !A.d.querySelector('[data-qm="2"][data-qx="a"]') && A.d.querySelectorAll('.q-mode')[2].textContent.includes('잠겨'));
+    ta.value = '수정 모드 답변'; ta.dispatchEvent(new A.w.Event('input', { bubbles: true }));
+    ck('[수정]: counter updates', A.d.querySelector('[data-qmc="0"]').textContent.replace(/\s/g, '').startsWith('8/'));
+    A.click('[data-act="close"]');
+    ck('[수정]: close blocked while changed', !!A.d.querySelector('[data-qm="0"][data-qx="a"]'));
+    A.click('[data-act="qm-done"]'); await sleep(1600);
+    ck('[수정]: 완료 saves answer, 미작성 → 초안', q(A, 'q1').a === '수정 모드 답변' && q(A, 'q1').st === '초안' && q(A, 'q3').a === '제출한 답변');
+    ck('[수정]: other answers untouched', q(A, 'q2').a === '예전 답변');
+    ck('no script errors ([수정])', !A.errs.length);
+  }
+  {
     const A = H.app(html, { store: mkStore(), meta, co: '남의회사' }); await sleep(80);
     A.click('#profBtn'); A.click('[data-act="view"][data-v="gh"]'); await sleep(20);
     A.openP1();
