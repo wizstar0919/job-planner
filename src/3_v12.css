@@ -22,6 +22,8 @@
 .ev{display:block}
 .ans{white-space:pre-wrap;line-height:1.75;padding:10px 12px;background:var(--surface-2);border-radius:8px;overflow-wrap:anywhere;user-select:text;-webkit-user-select:text}
 .ans.empty-a{color:var(--muted)}
+.ans.ans-new{cursor:text;border:1.5px dashed var(--line);background:transparent;min-height:72px}
+.ans.ans-new:hover,.ans.ans-new:focus-visible{border-color:var(--accent);color:var(--accent)}
 mark{background:var(--hl);color:inherit;border-radius:2px;cursor:pointer;padding:0 1px}
 mark.on{background:var(--hl-on)}
 .qbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px;color:var(--muted)}

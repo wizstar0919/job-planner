@@ -24,6 +24,7 @@
 | `test/mock_server_test.js` | 가짜 서버로 앱을 돌려 보는 자동 시험 (jsdom) |
 | `test/server_test.js` | `server/Code.gs` 를 가짜 구글 환경(메모리 시트·속성·잠금·네트워크)에서 돌려 보는 시험 |
 | `test/questions_test.js` | 자소서 문항 기능 시험 (글자 수 세기, 문항 정리, 추가·수정·빼기) (jsdom) · 공용 준비 코드 `test/harness.js` |
+| `test/answer_test.js` | 공고 상세에서 답변 바로 쓰기·고치기 시험 (정보 수정 없이, 저장 전 이동 막기, 잠금·공유 보기 제한) (jsdom) |
 | `test/security_test.js` | 화면의 보안·데이터 상황(이상한 시트 값, 편집 충돌, 저장 실패 등)을 흉내 내는 시험 (jsdom) |
 | `test/preview.py` `test/shot.py` | 가짜 데이터로 화면을 띄워 사진 찍는 도구 |
 | `manifest.webmanifest`, `icon*` | 휴대폰 홈 화면 추가용 |

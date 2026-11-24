@@ -328,6 +328,8 @@ details.orig pre{white-space:pre-wrap;font:inherit;max-height:200px;overflow:aut
 .ev{display:block}
 .ans{white-space:pre-wrap;line-height:1.75;padding:10px 12px;background:var(--surface-2);border-radius:8px;overflow-wrap:anywhere;user-select:text;-webkit-user-select:text}
 .ans.empty-a{color:var(--muted)}
+.ans.ans-new{cursor:text;border:1.5px dashed var(--line);background:transparent;min-height:72px}
+.ans.ans-new:hover,.ans.ans-new:focus-visible{border-color:var(--accent);color:var(--accent)}
 mark{background:var(--hl);color:inherit;border-radius:2px;cursor:pointer;padding:0 1px}
 mark.on{background:var(--hl-on)}
 .qbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px;color:var(--muted)}
@@ -1421,12 +1423,19 @@ function qCmts(p,cs,lost,placed,key){
 }
 function qBlock(p,q,i,r){
   const cs=p.comments.filter(c=>c.qi===i);
+  const can=!r&&!q.lock&&canEdit(owner(p));
+  const head=`<p><b>${i+1}.</b> ${esc(q.t)} <span class="muted small">${q.n?'· '+Number(q.n).toLocaleString()+qUnit(q.u):''}</span></p>`;
+  /* 답변 바로 쓰기: 상세 화면에서 그 자리에 입력 칸 (정보 수정 안 열어도 됨) */
+  if(can&&S.editQ&&S.editQ.pid===p.id&&S.editQ.qi===i)return `<div class="q" data-qi="${i}">${head}
+   <textarea id="ansTa" class="ans-ta" aria-label="${i+1}번 답변" placeholder="답변을 쓰거나 붙여넣어 주세요">${esc(S.editQ.draft??q.a??'')}</textarea>
+   <div class="qbar"><span class="cnt ${qOver(q,S.editQ.draft??q.a)?'over':''}" id="ansCnt">${qCnt(q,S.editQ.draft??q.a)}</span><span class="sp"><button class="btn sm" data-act="cancel-a">취소</button><button class="btn sm primary" data-act="save-a" data-i="${i}">저장</button></span></div></div>`;
   const {h,lost,placed}=hl(q.a,cs);
-  return `<div class="q" data-qi="${i}"><p><b>${i+1}.</b> ${esc(q.t)} <span class="muted small">${q.n?'· '+Number(q.n).toLocaleString()+qUnit(q.u):''}</span></p>
-   <div class="ans ${q.a?'':'empty-a'}" data-pid="${p.id}" data-qi="${i}">${q.a?h:'아직 답변이 없어요'+(r?'':' · [정보 수정]에서 쓸 수 있어요')}</div>
-   <div class="qbar"><span class="cnt ${qOver(q,q.a)?'over':''}">${qCnt(q,q.a)}</span>${q.a&&canComment(owner(p))?'<span>· 문장을 드래그하면 댓글을 달 수 있어요</span>':''}<span class="sp"><span class="pill ${q.st==='제출본'?'ok':'mute'}">${esc(q.st)}${q.lock?' 🔒':''}</span></span></div>
+  return `<div class="q" data-qi="${i}">${head}
+   ${!q.a&&can?`<div class="ans empty-a ans-new" data-act="edit-a" data-i="${i}" role="button" tabindex="0">✎ 눌러서 답변 쓰기</div>`:`<div class="ans ${q.a?'':'empty-a'}" data-pid="${p.id}" data-qi="${i}">${q.a?h:'아직 답변이 없어요'}</div>`}
+   <div class="qbar"><span class="cnt ${qOver(q,q.a)?'over':''}">${qCnt(q,q.a)}</span>${q.a&&canComment(owner(p))?'<span>· 문장을 드래그하면 댓글을 달 수 있어요</span>':''}<span class="sp">${q.a&&can?`<button class="link-btn small" data-act="edit-a" data-i="${i}">✎ 고치기</button>`:''}<span class="pill ${q.st==='제출본'?'ok':'mute'}">${esc(q.st)}${q.lock?' 🔒':''}</span></span></div>
    ${cs.length?qCmts(p,cs,lost,placed,p.id+':'+i):''}</div>`;
 }
+function ansDirty(){const ta=$('#ansTa');if(!ta||!S.editQ)return false;const p=find(S.editQ.pid),q=p&&p.qs[S.editQ.qi];return !!q&&ta.value!==(q.a||'')}
 /* [수정] 모드의 문항 칸 (S.qMode.qs[i] 를 고침. 삭제는 표시만 해 두고 [완료] 때 반영) */
 function qModeBlock(p,o,i){
   const q=o.qs[i],nc=p.comments.filter(c=>c.qi===i).length;
@@ -1859,6 +1868,10 @@ document.addEventListener('click',e=>{
   if(t.tagName==='INPUT'||t.tagName==='SELECT'||t.tagName==='LABEL')return;
   const a=t.dataset.act,v=t.dataset.v,id=t.dataset.id;
   const p=S.open?find(S.open):null;
+  /* 답변을 쓰는 중에 다른 곳으로 가면 쓴 글이 날아감 → 막고 알려 줌 */
+  if(S.editQ&&['close','open','open-c','nav','edit','qm-open','qn-open','edit-a','view'].includes(a)){
+    if(ansDirty()){toast('쓰던 답변이 있어요. 저장하거나 취소해 주세요');const ta=$('#ansTa');if(ta)ta.focus();return}
+    S.editQ=null}
   switch(a){
     case 'theme':toggleTheme();break;
     case 'rec-preset':recPreset(v);render();break;
@@ -1922,9 +1935,9 @@ document.addEventListener('click',e=>{
       if(o.qs.some(q=>!q.del&&!String(q.t).trim())){toast('비어 있는 문항이 있어요. 적거나 삭제해 주세요');break}
       p.qs=o.qs.filter(q=>!q.del&&by[q.id]).map(q=>{const x=by[q.id];const c=q.t!==x.t?cleanQ({t:q.t,n:q.n,u:q.u}):q;return Object.assign(x,{t:String(c.t).trim(),n:Math.max(0,parseInt(c.n,10)||0),u:c.u==='byte'?'byte':''})});
       remapCmts(p,oldIds);S.qMode=null;const nd=o.qs.filter(q=>q.del).length;changed(p,b,nd?`문항 ${nd}개를 지웠어요`:'문항을 고쳤어요')}break;
-    case 'edit-a':S.editQ={pid:p.id,qi:+t.dataset.i};renderLayer();break;
+    case 'edit-a':if(p&&canEdit(owner(p))&&p.qs[+t.dataset.i]&&!p.qs[+t.dataset.i].lock){S.editQ={pid:p.id,qi:+t.dataset.i};renderLayer();const ta=$('#ansTa');if(ta){ta.focus();ta.setSelectionRange(ta.value.length,ta.value.length)}}break;
     case 'cancel-a':S.editQ=null;renderLayer();break;
-    case 'save-a':if(p){const q=p.qs[+t.dataset.i];q.a=$('#ansTa').value;if(q.st==='미작성'&&q.a.trim())q.st='초안';S.editQ=null;dirty(p);render();toast('답변을 저장했어요')}break;
+    case 'save-a':if(p){const q=p.qs[+t.dataset.i],ta=$('#ansTa');if(!q||!ta||q.lock){S.editQ=null;renderLayer();break}if(ta.value===(q.a||'')){S.editQ=null;renderLayer();break}const b=snap(p);q.a=ta.value;if(q.st==='미작성'&&q.a.trim())q.st='초안';S.editQ=null;changed(p,b,'답변을 저장했어요')}break;
     case 'unlock':if(p){p.qs[+t.dataset.i].lock=false;dirty(p);renderLayer();toast('잠금을 풀었어요. 다 고치면 다시 제출본으로 바꿔 주세요')}break;
     case 'pin-c':showPop(t,true);break;
     case 'pop-close':hidePop();break;
@@ -1976,6 +1989,7 @@ document.addEventListener('click',e=>{
   }
 });
 document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&S.editQ&&!S.dlg){if(ansDirty()){toast('쓰던 답변이 있어요. 저장하거나 취소해 주세요');return}S.editQ=null;renderLayer();return}
   if(e.key==='Escape'){if(S.dlg)closeDlg();else if(S.open){S.open=null;S.editQ=null;render()}return}
   if(e.key==='Enter'&&e.target.id==='shEm'){e.preventDefault();const b=document.querySelector('[data-act="sh-add"]');if(b)b.click();return}
   if((e.key==='Enter'||e.key===' ')&&e.target.matches&&e.target.matches('[data-act][tabindex]')){e.preventDefault();e.target.click()}
@@ -2011,7 +2025,7 @@ document.addEventListener('input',e=>{
   if(el.id==='lQ'){S.lq=el.value;const r=listRows();$('#listBody').innerHTML=r.h;$('#listCnt').textContent=r.n+'건'}
   if(el.id==='bQ'){S.bQ=el.value;$('#boardBody').innerHTML=boardBody()}
   if(el.dataset&&el.dataset.qf==='a'&&S.ed&&el.closest('.sheet')){const q=S.ed.v.qs[+el.dataset.q];const c=document.querySelector('[data-cnt="'+el.dataset.q+'"]');if(c&&q){c.textContent=qCnt(q,el.value);c.classList.toggle('over',qOver(q,el.value))}}
-  if(el.id==='ansTa'){const p=find(S.open),q=p&&p.qs[S.editQ.qi];const c=$('#ansCnt');if(c&&q){c.textContent=qCnt(q,el.value);c.classList.toggle('over',qOver(q,el.value))}}
+  if(el.id==='ansTa'){if(S.editQ)S.editQ.draft=el.value;const p=find(S.open),q=p&&p.qs[S.editQ.qi];const c=$('#ansCnt');if(c&&q){c.textContent=qCnt(q,el.value);c.classList.toggle('over',qOver(q,el.value))}}
   if(el.dataset&&el.dataset.f){const f=el.closest('.field');if(f&&String(el.value).trim())f.classList.remove('missing');
     if(el.dataset.f==='co'&&S.form&&S.form.mode!=='edit'){const n=$('#dupNote');if(n)n.innerHTML=dupH(el.value,S.form.id)}}
 });
