@@ -497,15 +497,16 @@ function writeTable_(b, table, rows) { writeDef_(b, SCHEMA[table], rows); }
 
 /* ---------- 저장 (권한 확인 후) ---------- */
 function batchFor_(email, pid, ops) {
-  const reg = reg_(), role = roleOf_(reg, email, pid);
-  if (!role) return { ok: false, error: 'forbidden' };
-  if (role !== 'owner') {
+  const reg = reg_(), role = roleOf_(reg, email, pid), isAdmin = email === admin_();
+  if (!role && !isAdmin) return { ok: false, error: 'forbidden' };
+  if (role !== 'owner' && !isAdmin) { // 관리자(서버 주인)는 모든 플래너를 고칠 수 있음 (2026-11-24 민석님 결정)
     // 남의 플래너: 댓글 허용이면 댓글 표에 쓰기만. 읽기 허용이면 아무것도 못 씀
     const onlyComments = RANK[role] >= RANK.comment && ops.every(op => op.table === 'comments' && op.op === 'upsert');
     if (!onlyComments) return { ok: false, error: 'forbidden' };
   }
   if (!validOps_(ops)) return { ok: false, error: 'bad_request' };
   const pl = reg.planners.find(x => x.id === pid), mine = reg.planners.find(x => x.owner === email);
+  if (!pl) return { ok: false, error: 'not_found' };
   // 댓글 작성자는 화면이 보낸 값이 아니라 로그인한 사람(의 플래너 id)으로 정함
   return batch_(pl, ops, { owner: role === 'owner', actor: mine ? mine.id : email });
 }

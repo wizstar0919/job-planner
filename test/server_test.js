@@ -97,6 +97,10 @@ const cmt = (o) => ({ op: 'upsert', table: 'comments', rows: [o] });
   ck('normal owner save still works', r.ok && S.tables.posts[0].co === '고친 회사' && S.tables.events.length === 1);
   r = S.call(OWNER, { action: 'batch', pid: 'P_OWN', ops: [{ op: 'replace', table: 'events', key: 'pid', value: 'p1', rows: [] }] });
   ck('unknown op replace rejected', !r.ok && r.error === 'bad_request' && S.tables.events.length === 1);
+  r = S.call(ADMIN, { action: 'batch', pid: 'P_OWN', ops: [{ op: 'upsert', table: 'posts', rows: [{ id: 'p1', co: '관리자 수정' }] }] });
+  ck('admin can edit any planner', r.ok && S.tables.posts[0].co === '관리자 수정');
+  r = S.call(ADMIN, { action: 'batch', pid: 'NOPE', ops: [{ op: 'upsert', table: 'posts', rows: [{ id: 'p1', co: 'x' }] }] });
+  ck('admin: unknown planner rejected', !r.ok && r.error === 'not_found');
 }
 
 /* ---------- 공고 정리 한도: 호출 전에 잡아 둠 ---------- */
