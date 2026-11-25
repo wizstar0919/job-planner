@@ -86,7 +86,7 @@ function doPost(e) {
       case 'logoutAll': bumpSess_(email); return out_({ ok: true });
       case 'setCompanies': return out_(email === admin_() ? setCompanies_(req.rows || []) : { ok: false, error: 'forbidden' });
       case 'mergeDiff': return out_(email === admin_() ? mergeDiff_() : { ok: false, error: 'forbidden' });
-      case 'adminInfo': case 'approve': case 'setLimit': case 'setDefaults': case 'setOwner':
+      case 'adminInfo': case 'approve': case 'setLimit': case 'setDefaults': case 'setOwner': case 'setOtherEdit':
         return out_(email === admin_() ? adminAct_(email, req) : { ok: false, error: 'forbidden' });
       default: return out_({ ok: false, error: 'unknown_action' });
     }
@@ -264,6 +264,9 @@ function adminAct_(admin, req) {
       reg.shares = reg.shares.filter(x => !(x.pid === pid && x.email === target));
     });
     if (r && r.error) return r;
+  } else if (req.action === 'setOtherEdit') {
+    // 다른 사람 플래너 고치기: 켜면 30분 뒤 저절로 잠김, 끄면 바로 잠김
+    p.setProperty('OTHER_EDIT_UNTIL', String(req.open ? Date.now() + OTHER_MIN * 60000 : 0));
   }
   return adminInfo_();
 }
@@ -273,7 +276,8 @@ function adminInfo_() {
   return { ok: true, admin: admin_(), members: members_(reg),
     planners: reg.planners.map(pl => ({ id: pl.id, name: pl.name, owner: pl.owner, created: pl.created, shares: reg.shares.filter(x => x.pid === pl.id).length })),
     total: { used: Number(p.getProperty(usageKey_()) || 0), limit: Number(p.getProperty('DAILY_LIMIT') || 100) },
-    userLimit: Number(p.getProperty('USER_LIMIT') || 20), hasKey: !!p.getProperty('ANTHROPIC_API_KEY') };
+    userLimit: Number(p.getProperty('USER_LIMIT') || 20), hasKey: !!p.getProperty('ANTHROPIC_API_KEY'),
+    otherUntil: otherOpen_() ? Number(p.getProperty('OTHER_EDIT_UNTIL')) : 0 };
 }
 /* 한 번만: 예전 권한(전체·편집) → 댓글 허용, 건희 플래너 주인 지정(Local.gs 의 GH_OWNER), 한도 기본값 */
 function migrate_() {
@@ -496,13 +500,19 @@ function readTable_(b, table) { return readDef_(b, SCHEMA[table]); }
 function writeTable_(b, table, rows) { writeDef_(b, SCHEMA[table], rows); }
 
 /* ---------- 저장 (권한 확인 후) ---------- */
+/* 관리자가 남의 플래너를 고칠 수 있게 연 끝 시각(ms). 지나면 저절로 잠김 */
+const OTHER_MIN = 30;
+function otherOpen_() { return Number(props_().getProperty('OTHER_EDIT_UNTIL') || 0) > Date.now(); }
 function batchFor_(email, pid, ops) {
   const reg = reg_(), role = roleOf_(reg, email, pid), isAdmin = email === admin_();
-  if (!role && !isAdmin) return { ok: false, error: 'forbidden' };
-  if (role !== 'owner' && !isAdmin) { // 관리자(서버 주인)는 모든 플래너를 고칠 수 있음 (2026-11-24 민석님 결정)
+  // 관리자(서버 주인)는 남의 플래너도 고칠 수 있음 (2026-11-24 민석님 결정) — 단, 관리자 콘솔에서 직접 연 30분 동안만 (안전장치, 2026-11-25)
+  //   여는 건 로그인한 관리자 화면에서만 가능 (도구 키로는 못 엶) → AI·도구가 마음대로 남의 플래너를 못 고침
+  const adminOther = isAdmin && role !== 'owner', open = adminOther && otherOpen_();
+  if (!role && !open) return { ok: false, error: adminOther ? 'other_locked' : 'forbidden' };
+  if (role !== 'owner' && !open) {
     // 남의 플래너: 댓글 허용이면 댓글 표에 쓰기만. 읽기 허용이면 아무것도 못 씀
     const onlyComments = RANK[role] >= RANK.comment && ops.every(op => op.table === 'comments' && op.op === 'upsert');
-    if (!onlyComments) return { ok: false, error: 'forbidden' };
+    if (!onlyComments) return { ok: false, error: adminOther ? 'other_locked' : 'forbidden' };
   }
   if (!validOps_(ops)) return { ok: false, error: 'bad_request' };
   const pl = reg.planners.find(x => x.id === pid), mine = reg.planners.find(x => x.owner === email);

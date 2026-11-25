@@ -97,10 +97,23 @@ const cmt = (o) => ({ op: 'upsert', table: 'comments', rows: [o] });
   ck('normal owner save still works', r.ok && S.tables.posts[0].co === '고친 회사' && S.tables.events.length === 1);
   r = S.call(OWNER, { action: 'batch', pid: 'P_OWN', ops: [{ op: 'replace', table: 'events', key: 'pid', value: 'p1', rows: [] }] });
   ck('unknown op replace rejected', !r.ok && r.error === 'bad_request' && S.tables.events.length === 1);
-  r = S.call(ADMIN, { action: 'batch', pid: 'P_OWN', ops: [{ op: 'upsert', table: 'posts', rows: [{ id: 'p1', co: '관리자 수정' }] }] });
-  ck('admin can edit any planner', r.ok && S.tables.posts[0].co === '관리자 수정');
+  // 관리자도 평소엔 남의 플래너를 못 고침 → 관리자 콘솔에서 직접 연 30분 동안만 (안전장치)
+  const adminEdit = () => S.call(ADMIN, { action: 'batch', pid: 'P_OWN', ops: [{ op: 'upsert', table: 'posts', rows: [{ id: 'p1', co: '관리자 수정' }] }] });
+  r = adminEdit();
+  ck('admin: other planner locked by default', !r.ok && r.error === 'other_locked' && S.tables.posts[0].co === '고친 회사');
+  r = S.call(OWNER, { action: 'setOtherEdit', open: true });
+  ck('non-admin cannot open other-planner edit', !r.ok && r.error === 'forbidden');
+  r = S.call(ADMIN, { action: 'setOtherEdit', open: true });
+  ck('admin console opens other-planner edit (30 min)', r.ok && r.otherUntil > Date.now() + 29 * 60000 && r.otherUntil <= Date.now() + 30 * 60000);
+  r = adminEdit();
+  ck('admin can edit any planner while open', r.ok && S.tables.posts[0].co === '관리자 수정');
   r = S.call(ADMIN, { action: 'batch', pid: 'NOPE', ops: [{ op: 'upsert', table: 'posts', rows: [{ id: 'p1', co: 'x' }] }] });
   ck('admin: unknown planner rejected', !r.ok && r.error === 'not_found');
+  S.props.OTHER_EDIT_UNTIL = String(Date.now() - 1);
+  r = adminEdit();
+  ck('admin: locks again by itself after 30 min', !r.ok && r.error === 'other_locked');
+  S.call(ADMIN, { action: 'setOtherEdit', open: true }); r = S.call(ADMIN, { action: 'setOtherEdit', open: false });
+  ck('admin console locks right away', r.ok && r.otherUntil === 0 && adminEdit().error === 'other_locked');
 }
 
 /* ---------- 공고 정리 한도: 호출 전에 잡아 둠 ---------- */
@@ -197,6 +210,10 @@ const cmt = (o) => ({ op: 'upsert', table: 'comments', rows: [o] });
   ck('wrong tool key rejected', !r.ok && r.error === 'auth');
   r = tool('k-123', { action: 'share', pid: 'P_OWN', emails: ['x@example.com'], role: 'read' });
   ck('tool key limited to load/save', !r.ok && r.error === 'forbidden');
+  r = tool('k-123', { action: 'setOtherEdit', open: true });
+  ck('tool key cannot open other-planner edit', !r.ok && r.error === 'forbidden' && !S.props.OTHER_EDIT_UNTIL);
+  r = tool('k-123', { action: 'batch', pid: 'P_CM', ops: [{ op: 'upsert', table: 'posts', rows: [{ id: 'p1', co: '도구가 고침' }] }] });
+  ck('tool key cannot edit other planner (locked)', !r.ok && r.error === 'other_locked');
   const S2 = boot({ props: { ADMIN_EMAIL: OWNER } });
   r = S2.ctx.doPost({ postData: { contents: JSON.stringify({ toolKey: '', action: 'loadAll' }) } });
   ck('no tool key configured → rejected', !r.ok && r.error === 'auth');

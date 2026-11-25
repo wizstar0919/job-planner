@@ -67,7 +67,7 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const root=document.getElementById('root');
 let D=null,view='load',err='',busy='';
 const ERR={network:'인터넷 연결을 확인해 주세요',auth:'다시 로그인해 주세요',forbidden:'관리자만 볼 수 있어요',login_failed:'구글 로그인을 확인하지 못했어요',
-  bad_email:'이메일 주소를 확인해 주세요',bad_number:'숫자(0~9999)로 적어 주세요',has_planner:'그 사람은 이미 자기 플래너가 있어요',not_found:'플래너를 찾을 수 없어요'};
+  bad_email:'이메일 주소를 확인해 주세요',bad_number:'숫자(0~9999)로 적어 주세요',has_planner:'그 사람은 이미 자기 플래너가 있어요',not_found:'플래너를 찾을 수 없어요',other_locked:'다른 사람 플래너는 잠겨 있어요'};
 const msg=e=>ERR[e&&e.code]||('문제가 생겼어요 ('+((e&&e.code)||'알 수 없음')+')');
 function toast(m){const o=document.querySelector('.toast');if(o)o.remove();const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2600)}
 async function api(action,body){
@@ -101,6 +101,9 @@ function render(){
     <div class="stat"><div class="muted small">Claude API 키</div><div class="v small" style="font-size:15px">${D.hasKey?'연결됨 ✅':'아직 없음'}</div></div></div>
    <div class="row" style="margin-top:12px"><span class="small">한 사람당</span><input type="number" id="dUser" min="0" max="9999" value="${D.userLimit}" aria-label="한 사람당 기본 한도"><span class="small">번 · 서버 전체</span><input type="number" id="dTotal" min="0" max="9999" value="${D.total.limit}" aria-label="서버 전체 한도"><span class="small">번</span><button class="btn" data-act="defaults" ${busy?'disabled':''}>저장</button></div>
    <div class="muted small" style="margin-top:6px">매일 0시(한국 시간)에 다시 0부터 셉니다. 사람별로 다르게 하려면 아래 회원 표의 칸에 숫자를 넣고 칸 밖을 누르세요(비우면 기본 한도).</div></section>
+  <section class="card"><h2>다른 사람 플래너 고치기 <span class="st ${D.otherUntil?'wait':'ok'}">${D.otherUntil?'열림':'잠김'}</span></h2>
+   <div class="muted small">평소엔 잠겨 있어서 관리자 계정이나 자소서 도구(AI 포함)로도 다른 사람 플래너를 고칠 수 없어요. 버그를 고치거나 확인할 때만 여세요. 열면 30분 뒤 저절로 잠겨요.</div>
+   <div class="row" style="margin-top:10px">${D.otherUntil?`<span class="small">${new Date(D.otherUntil).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}까지 열려 있어요</span><button class="btn danger" data-act="other" data-v="0" ${busy?'disabled':''}>지금 잠그기</button>`:`<button class="btn" data-act="other" data-v="1" ${busy?'disabled':''}>30분 열기</button>`}</div></section>
   <section class="card"><h2>회원 <span class="muted small">${ms.length}명${wait?` · <b style="color:var(--warn)">승인 대기 ${wait}명</b>`:''}</span></h2>
    <div class="muted small" style="margin-bottom:6px">처음 로그인한 사람은 '대기'로 들어와요. 승인하면 자기 플래너가 생기고 공고 정리도 쓸 수 있어요. 플래너 주인과 공유받은 사람은 자동 승인이고, '거절'·'이용 중지'면 전부 막혀요. 다른 사람 플래너의 내용은 이 화면에 나오지 않아요.</div>
    <table class="tbl"><thead><tr><th>사람</th><th>상태</th><th>플래너</th><th>가입일</th><th>오늘 사용 / 한도</th><th></th></tr></thead><tbody>${ms.map(mRow).join('')}</tbody></table></section>
@@ -131,6 +134,7 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-act]');if(
   if(a==='reload')load();
   if(a==='logout'){cfg.sess='';cfg.email='';LS.set('cfg',cfg);try{localStorage.removeItem('jpl_cache')}catch(x){}view='login';render()}
   if(a==='approve'){const em=t.dataset.em,v=t.dataset.v;act('approve',{email:em,status:v},`${em} → ${v==='거절'?'막음':'승인'}`)}
+  if(a==='other'){const o=t.dataset.v==='1';act('setOtherEdit',{open:o},o?'30분 동안 다른 사람 플래너를 고칠 수 있어요':'다시 잠갔어요')}
   if(a==='defaults'){act('setDefaults',{userLimit:document.getElementById('dUser').value.trim(),total:document.getElementById('dTotal').value.trim()},'한도를 저장했어요')}
   if(a==='owner'){const pid=t.dataset.v,el=[...document.querySelectorAll('[data-own]')].find(x=>x.dataset.own===pid),em=(el&&el.value||'').trim();
     if(!em){toast('새 주인 이메일을 적어 주세요');return}act('setOwner',{pid,email:em},'주인을 바꿨어요')}
