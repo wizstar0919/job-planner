@@ -39,7 +39,7 @@ function boot(opt) {
     UrlFetchApp: { fetch(url, o) { fetches.push(url); const r = onFetch(url, o); return { getResponseCode: () => r.code, getContentText: () => r.text,
       getBlob: () => ({ getBytes: () => [0x89, 0x50, 1, 2], getContentType: () => 'image/png' }) }; } }
   });
-  vm.runInContext(src, ctx, { filename: 'Code.gs' });
+  vm.runInContext(opt.retired ? src : src.replace(/const MOVED_TO = '[^']*';/, "const MOVED_TO = '';"), ctx, { filename: 'Code.gs' }); // 은퇴 막기는 따로 시험
   if (opt.toolKey) ctx.TOOL_KEY_HASH = crypto.createHash('sha256').update(opt.toolKey).digest('hex');
   ctx.ensureInit_ = () => ({}); ctx.migrate_ = () => {};
   ctx.reg_ = () => copy(reg);
@@ -217,6 +217,18 @@ const cmt = (o) => ({ op: 'upsert', table: 'comments', rows: [o] });
   const S2 = boot({ props: { ADMIN_EMAIL: OWNER } });
   r = S2.ctx.doPost({ postData: { contents: JSON.stringify({ toolKey: '', action: 'loadAll' }) } });
   ck('no tool key configured → rejected', !r.ok && r.error === 'auth');
+}
+
+/* ---------- 은퇴 (2026-11-25): 읽기만, 나머지는 moved ---------- */
+{
+  const S = boot({ retired: true, toolKey: 'k-123', props: { ADMIN_EMAIL: OWNER } });
+  const tool = body => S.ctx.doPost({ postData: { contents: JSON.stringify(Object.assign({ toolKey: 'k-123' }, body)) } });
+  ck('retired: tool key read still works', tool({ action: 'loadAll' }).ok === true);
+  let r = tool({ action: 'batch', pid: 'P_OWN', ops: [{ op: 'upsert', table: 'posts', rows: [{ id: 'p1', co: 'x' }] }] });
+  ck('retired: save rejected with moved + new address', !r.ok && r.error === 'moved' && /iwillapply/.test(r.url) && S.tables.posts[0].co === '원래 회사');
+  r = S.call(OWNER, { action: 'batch', pid: 'P_OWN', ops: [{ op: 'upsert', table: 'posts', rows: [{ id: 'p1', co: 'x' }] }] });
+  ck('retired: app save rejected', r.error === 'moved');
+  ck('retired: login rejected', S.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'login', idToken: 'x' }) } }).error === 'moved');
 }
 
 let fail = log.filter(l => l.startsWith('FAIL'));

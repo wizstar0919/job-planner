@@ -20,6 +20,8 @@ const RANK = { read: 1, comment: 2, edit: 3, full: 4, owner: 5 };
 const SHARE_ROLES = ['comment', 'read'];
 const SESSION_DAYS = 30;
 
+/* 2026-11-25 은퇴: '지원할게'(Cloudflare)로 옮김. 이 서버는 읽기(loadAll)만 받고, 저장·로그인 등은 모두 'moved' 로 거절 (데이터는 시트에 기록으로 남김) */
+const MOVED_TO = 'https://iwillapply.kms2086.workers.dev';
 const SCHEMA = {
   posts: { tab: '공고', cols: [['id','id'],['co','회사'],['job','지원 직무'],['role','상세 직무명'],['type','유형'],['ind','업권'],['loc','근무지'],
     ['link','공고 링크'],['relLink','관련 자료'],['applyStart','접수 시작'],['dueKind','마감 종류'],['due','마감'],['recheck','재확인일'],
@@ -71,6 +73,7 @@ function doPost(e) {
   try {
     ensureInit_();
     migrate_();
+    if (MOVED_TO && req.action !== 'loadAll') return out_({ ok: false, error: 'moved', url: MOVED_TO });
     if (req.action === 'login') return out_(login_(req.idToken));
     // 자소서 올리기 도구(tools/jaso_sync.py): 도구 키로 관리자 본인 플래너 읽기·저장만
     if (req.toolKey != null && ['loadAll', 'batch', 'mergeDiff', 'setCompanies'].indexOf(req.action) < 0) return out_({ ok: false, error: 'forbidden' });

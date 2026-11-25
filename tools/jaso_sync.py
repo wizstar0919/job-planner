@@ -23,8 +23,9 @@ if hasattr(sys.stdout, 'reconfigure'):
 
 def api(action, **body):
     data = json.dumps(dict(body, toolKey=KEY, action=action), ensure_ascii=False).encode('utf-8')
-    req = urllib.request.Request(SERVER, data=data, headers={'Content-Type': 'text/plain;charset=utf-8'})
-    with urllib.request.urlopen(req, timeout=180) as r:   # 302 → GET 으로 따라감 (Apps Script 방식)
+    # 2026-11-25부터 서버 = 지원할게(Cloudflare). 이름표(User-Agent)가 없으면 Cloudflare 가 403 으로 막음
+    req = urllib.request.Request(SERVER, data=data, headers={'Content-Type': 'text/plain;charset=utf-8', 'User-Agent': 'jaso-sync/1.0'})
+    with urllib.request.urlopen(req, timeout=180) as r:
         j = json.loads(r.read().decode('utf-8'))
     if not j.get('ok'):
         sys.exit('서버 오류: %s %s' % (j.get('error'), j.get('detail') or ''))
