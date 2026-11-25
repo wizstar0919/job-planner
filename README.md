@@ -1,5 +1,7 @@
 # 구직 플래너 (job-planner)
 
+> **2026-11-25 은퇴 — '지원할게'(https://iwillapply.kms2086.workers.dev, 코드 `../job-planner-cf/`)로 전환.** 이 주소는 이동 안내 페이지(`index.html`·`admin.html`), 서버는 읽기만 받음(`MOVED_TO`). `src/`·`server/` 는 기록으로 남김. `tools/`(자소서 올리기·공고 폴더 정리)는 계속 쓰며 지원할게 서버에 저장함.
+
 취업 준비용 웹앱. 공고·마감·전형 일정·할 일·자소서 문항과 답변, 문장 단위 댓글을 관리한다. 구글 계정으로 로그인하고, 플래너를 다른 사람에게 노션처럼 공유(댓글 허용 · 읽기 허용)할 수 있다.
 
 - `index.html` — 앱 화면 (GitHub Pages). `src/` 조각을 `bash build.sh` 로 합쳐 만든다
